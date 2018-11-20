@@ -1,0 +1,50 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+\usepackage{graphicx}
+\usepackage{todonotes}
+
+\graphicspath{{./images}}
+
+\author{Garibaldi Pineda Garc{\'i}a}
+\title{Report 19-11-2018}
+\begin{document}
+  \maketitle
+  I arrived to the group on the 15th of November 2018; I've been settling in. 
+  I almost have a fully working desktop computer!
+  
+  The objective is to make use of the BrainScaleS neuromorphic platform to do object recognition. 
+  For this we will pursue odour identification taking inspiration from insect neural anatomy. 
+  
+  \section{Background reading}
+  I read the Wikipedia entry on insect olfaction as a layman's introduction to the subject. 
+  It mainly explains the structure of the olfactory pathway of an insect's nervous system. 
+  
+  I've started reading papers suggested by Mario Pannunzi:
+    \subsection{Odor plumes and how insects use them}
+    The authors describe the complexity of odour plumes and present a review of models. 
+    There are 3 different aspects to the full plume structure model:
+    \begin{itemize}
+      \item Large scale. 
+      This deals with the shape and odour strength (average). 
+      Many models have been suggested for the direction aspect of the shape ranging from linear to wave-like. 
+      Average strength is usually modelled as having an exponential decay with respect to distance.
+      Insects use this aspect to orient themselves while finding the source. 
+      
+      \item Small scale. Odour concentration fluctuation; affects insect instantaneous response.
+      Since the medium is turbulent, concentration changes along the plume. 
+      Furthermore, insects' behaviour is modified depending on how dense the odour is (e.g. attraction vs. repulsion). 
+      
+      \item Time-average. How likely is an insect to smell the source.
+      
+    \end{itemize}
+    In summary, odour perception is a complex problem as the signal is propagated through a medium (wind) which is usually turbulent. 
+    The signal is thus unreliable and the medium does not commonly indicate the source's direction.
+    Nonetheless, insects are able to locate stimuli emitters and react.
+    \todo[inline]{Are we skipping this part in the simulation? We just assume antennas received a concentration X of odour Y?}
+   \subsection{Learning pattern recognition and decision making in the insect brain}
+   
+\end{document}
+
