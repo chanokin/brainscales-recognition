@@ -9,9 +9,9 @@
    xmlns="http://www.w3.org/2000/svg"
    xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
-   width="483.87357mm"
-   height="207.84158mm"
-   viewBox="0 0 1714.5127 736.44655"
+   width="590.79279mm"
+   height="207.84157mm"
+   viewBox="0 0 2093.3603 736.4465"
    id="svg2"
    version="1.1"
    inkscape:version="0.91 r13725"
@@ -264,6 +264,21 @@
          d="m -2.5,-1 c 0,2.76 -2.24,5 -5,5 -2.76,0 -5,-2.24 -5,-5 0,-2.76 2.24,-5 5,-5 2.76,0 5,2.24 5,5 z"
          id="path9138-1" />
     </marker>
+    <marker
+       inkscape:isstock="true"
+       style="overflow:visible"
+       id="marker9525-3"
+       refX="0"
+       refY="0"
+       orient="auto"
+       inkscape:stockid="TriangleInS">
+      <path
+         transform="scale(-0.2,-0.2)"
+         style="fill:#00d400;fill-opacity:1;fill-rule:evenodd;stroke:#00d400;stroke-width:1pt;stroke-opacity:1"
+         d="m 5.77,0 -8.65,5 0,-10 8.65,5 z"
+         id="path9527-6"
+         inkscape:connector-curvature="0" />
+    </marker>
   </defs>
   <sodipodi:namedview
      id="base"
@@ -272,9 +287,9 @@
      borderopacity="1.0"
      inkscape:pageopacity="0.0"
      inkscape:pageshadow="2"
-     inkscape:zoom="0.35"
-     inkscape:cx="811.0519"
-     inkscape:cy="19.358506"
+     inkscape:zoom="0.49497475"
+     inkscape:cx="1874.6231"
+     inkscape:cy="398.55834"
      inkscape:document-units="px"
      inkscape:current-layer="layer1"
      showgrid="false"
@@ -303,7 +318,24 @@
      inkscape:label="Layer 1"
      inkscape:groupmode="layer"
      id="layer1"
-     transform="translate(569.28795,-67.112245)">
+     transform="translate(569.28795,-67.112186)">
+    <path
+       style="fill:none;fill-rule:evenodd;stroke:#00d400;stroke-width:8;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;marker-end:url(#marker9525-3)"
+       d="m 1113.524,385.87296 c 150.5021,0 110.985,-7.7607 252.1967,-7.7607"
+       id="path9419-7"
+       inkscape:connector-curvature="0"
+       sodipodi:nodetypes="cc" />
+    <text
+       xml:space="preserve"
+       style="font-style:normal;font-weight:normal;font-size:40px;line-height:1000%;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+       x="1214.1722"
+       y="360.47733"
+       id="text9781-5"
+       sodipodi:linespacing="1000%"><tspan
+         sodipodi:role="line"
+         id="tspan9783-3"
+         x="1214.1722"
+         y="360.47733">sparse</tspan></text>
     <path
        sodipodi:nodetypes="cc"
        inkscape:connector-curvature="0"
@@ -968,5 +1000,23 @@
          x="928.62653"
          id="tspan11271"
          sodipodi:role="line">sparse</tspan></text>
+    <circle
+       r="64.36982"
+       cy="376.67258"
+       cx="1437.4474"
+       id="circle4363"
+       style="opacity:1;fill:#ffffff;fill-opacity:1;stroke:#2c89a0;stroke-width:4;stroke-linecap:square;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1" />
+    <text
+       sodipodi:linespacing="115%"
+       id="text5014"
+       y="115.21935"
+       x="1341.2388"
+       style="font-style:normal;font-weight:normal;font-size:40px;line-height:114.99999762%;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+       xml:space="preserve"><tspan
+         id="tspan5020"
+         style="line-height:114.99999762%"
+         y="115.21935"
+         x="1341.2388"
+         sodipodi:role="line">Readout</tspan></text>
   </g>
 </svg>
