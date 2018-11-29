@@ -6,4 +6,4 @@
 *.bib
 */nest/*
 */venv2/*
-
+*/cypress/*

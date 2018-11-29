@@ -49,7 +49,7 @@ inputs = pynn.Population(N_NEURONS, pynn.SpikeSourcePoisson,
          )
 
 proj = pynn.Projection(inputs, neurons,
-        pynn.OneToOneConnector(weights=0.10))
+        pynn.OneToOneConnector(weights=0.001))
 
 pynn.run(1000)
 
