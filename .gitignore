@@ -4,3 +4,6 @@
 *.log
 *.synctex.gz
 *.bib
+*/nest/*
+*/venv2/*
+
