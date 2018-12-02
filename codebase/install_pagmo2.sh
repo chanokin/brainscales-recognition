@@ -1,33 +1,16 @@
 #! /bin/bash
+source ./path_config.sh
+source $VENV_DIR/bin/activate
 
-BASE_DIR=`pwd`
-VENV_DIR="$BASE_DIR/venv2"
-NEST_DIR="$BASE_DIR/nest"
-CYPR_DIR="$BASE_DIR/cypress"
+# dependencies
+# libboost-dev libeigen3-dev  libnlopt0 libnlopt-dev coinor-libipopt1v5 coinor-libipopt-dev
 
-# create virtual environment (Python 2.7)
-virtualenv $VENV_DIR
-
-# install PyNN 0.7.5
-source "$VENV_DIR/bin/activate"
-pip install numpy
-pip install six
-pip install scipy
-pip install matplotlib
-pip install PyNN==0.7.5
-
-# create temporary install dir
-mkdir nest_install
-cd nest_install
-wget https://github.com/nest/nest-releases/blob/master/nest-2.2.2.tar.gz?raw=true
-mv nest-2.2.2.tar.gz?raw=true nest-2.2.2.tar.gz
-tar xf nest-2.2.2.tar.gz
-
-# configure
-#   requires: libncurses5-dev libncurses5 libncurses5-dev libncurses5
-#   optional: libgsl2 libgsl-dev
-cd nest-2.2.2 
-./configure --prefix=$NEST_DIR
+# download 
+git clone https://github.com/esa/pagmo2.git pagmo2_install
+cd pagmo2_install 
+mkdir build
+cd build
+cmake -DCMAKE_INSTALL_PREFIX:PATH=$PAGMO_DIR -DPAGMO_WITH_EIGEN3=ON -DPAGMO_WITH_NLOPT=ON -DPAGMO_WITH_IPOPT=ON ..
 
 # compile
 make

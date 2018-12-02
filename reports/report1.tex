@@ -15,24 +15,46 @@
 
 \maketitle
 
-\section{NEST and PyNN}
-\url{https://github.com/nest/nest-releases/blob/master/nest-2.2.2.tar.gz}
-\url{https://github.com/NeuralEnsemble/PyNN/releases/tag/0.7.5}
+\section{Software environment}
+\subsection{NEST and PyNN}
+The default configuration for BrainScaleS (BSS) requires PyNN 0.7 (deprecated); if we want to do tests on the local host with Nest, we need to use version 2.2.2.\\
 
-\section{Cypress}
-Cypress supports only Nest with PyNN 0.8 -- this is not ideal for dev!
-https://github.com/hbp-unibi/cypress
 
-\section{DEAP}
+\url{https://github.com/nest/nest-releases/blob/master/nest-2.2.2.tar.gz}\\
+
+\url{https://github.com/NeuralEnsemble/PyNN/releases/tag/0.7.5}\\
+
+\subsection{Cypress}
+Cypress is a spiking neural network simulation framework developed (and for use) with C++.
+This allows for fast(er?) network building times and all the beauty that comes with a typed, compiled language.
+This framework can serve as a PyNN wrapper allowing the use of  multiple back-end simulators (Nest, Brian, SpiNNaker, BrainScales, etc.); furthermore, the mindset for assembling networks is similar to PyNN 0.8 and up.
+Unfortunately, Cypress supports Nest only with PyNN 0.8 which makes it a bit incompatible with the default configuration for BrainScales\\
+
+
+\url{https://github.com/hbp-unibi/cypress}
+
+\subsection{DEAP}
+
+Distributed Evolutionary Algorithms in Python (DEAP) is a library which allows the user to easily perform multiple types of evolutionary algorithms. 
+Since it is a Python library it would allow to easily integrate the PyNN-BSS workflow.\\ 
+
 \url{https://deap.readthedocs.io/en/master/index.html}
 
-\section{Open Beagle}
+\subsection{Open Beagle}
+Open Beagle is an evolutionary computing framework for the C++ language. 
+The design/usage philosophy is similar to DEAP and the interaction with Cypress would \underline{hopefully} be easy.\\
+
 \url{https://github.com/chgagne/beagle}
 
-\section{ECF - Evolutionary Computation Framework}
-\url{http://ecf.zemris.fer.hr/}
+%\subsection{ECF - Evolutionary Computation Framework}
+%\url{http://ecf.zemris.fer.hr/}
 
-\section{PaGMO}
+\subsection{PaGMO}
+PaGMO is a C++ (and Python) library for parallel optimization. 
+The main advantage could be that we may use the Python interface for PyNN while keeping the high-performance C++ back-end.
+Additionally, if this is not possible we could still use C++ with Cypress?
+Another benefit is that we could jump from Genetic Algorithms to another optimization algorithm such as Particle Swarms or Simulated Annealing.\\
+
 \url{https://esa.github.io/pagmo2/}
 
 \end{document}
