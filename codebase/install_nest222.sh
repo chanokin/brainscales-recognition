@@ -1,6 +1,6 @@
 #! /bin/bash
 source ./path_config.sh
-source $VENV_DIR/bin/activate
+source ./install_venv2.sh
 
 # create temporary install dir
 mkdir nest_install
@@ -19,10 +19,24 @@ cd nest-2.2.2
 make
 
 # install
+echo "--------------------------------------------------\n"
+echo "--------------------------------------------------\n"
+
 make install
 
+echo "--------------------------------------------------\n"
+echo "------------------- done install -----------------\n"
+
+
 # clean up
+make clean
+echo "--------------------------------------------------\n"
+echo "-------------------  done clean  -----------------\n"
+
+cd ../..
 rm -fr nest_install
+echo "--------------------------------------------------\n"
+echo "------------------ done removing -----------------\n"
 
 # add nest Python paths
 echo "$NEST_DIR/lib/python2.7/site-packages/" > $VENV_DIR/lib/python2.7/site-packages/nest.pth

@@ -6,4 +6,9 @@
 *.bib
 */nest/*
 */venv2/*
+*/venv_new/*
+*/nest222/*
+*/nest_latest/*
 */cypress/*
+*/neurosim/*
+*/pagmo/*

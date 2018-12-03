@@ -6,6 +6,8 @@
 \usepackage{graphicx}
 \usepackage{todonotes}
 \usepackage{url}
+\usepackage{fancyvrb}
+\usepackage{xcolor}
 \graphicspath{{images/}}
 
 \author{Garibaldi Pineda Garc{\'i}a}
@@ -29,6 +31,26 @@ Cypress is a spiking neural network simulation framework developed (and for use)
 This allows for fast(er?) network building times and all the beauty that comes with a typed, compiled language.
 This framework can serve as a PyNN wrapper allowing the use of  multiple back-end simulators (Nest, Brian, SpiNNaker, BrainScales, etc.); furthermore, the mindset for assembling networks is similar to PyNN 0.8 and up.
 Unfortunately, Cypress supports Nest only with PyNN 0.8 which makes it a bit incompatible with the default configuration for BrainScales\\
+
+There is a bug in the \verb CMakeLists.txt    file
+
+\begin{Verbatim}[commandchars=\\\{\}]
+	\textcolor{red}{
+	- FILES ${CMAKE_BINARY_DIR}/cypress/config.h
+	}
+	\textcolor{blue}{
+	+ FILES ${CMAKE_BINARY_DIR}/include/cypress/config.h
+	}
+\end{Verbatim}
+
+\begin{Verbatim}[commandchars=\\\{\}]
+	\textcolor{red}{
+	- set(STATIC_LINKING TRUE CACHE BOOL "True for static linking") 
+	}
+	\textcolor{blue}{
+	+ set(STATIC_LINKING FALSE CACHE BOOL "True for static linking") 
+	}
+\end{Verbatim}
 
 
 \url{https://github.com/hbp-unibi/cypress}
