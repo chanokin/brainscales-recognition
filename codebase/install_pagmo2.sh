@@ -1,6 +1,7 @@
 #! /bin/bash
 source ./path_config.sh
 source ./install_venv_new.sh
+source $VENV_NEW_DIR/bin/activate
 
 ### dependencies
 ### libboost-dev libeigen3-dev  libnlopt0 libnlopt-dev coinor-libipopt1v5 coinor-libipopt-dev
@@ -27,3 +28,4 @@ make install
 cd ../..
 rm -fr pagmo2_install
 
+deactivate

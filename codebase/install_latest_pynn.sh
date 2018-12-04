@@ -2,11 +2,14 @@
 
 source ./path_config.sh
 source ./install_venv_new.sh
-source $NEST_NEW_DIR/bin/nest_vars.sh
+
+source $VENV_NEW_DIR/bin/activate
 
 ### requires mpi-default-dev
 
+
 ### install PyNN - latest
+pip install wheel
 pip install numpy
 pip install scipy
 pip install matplotlib
@@ -17,3 +20,9 @@ pip install mpi4py
 pip install jinja2
 pip install csa
 pip install PyNN
+
+git clone https://github.com/HumanBrainProject/hbp-neuromorphic-client
+cd hbp-neuromorphic-client
+python setup.py install --user
+
+deactivate

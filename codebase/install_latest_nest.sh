@@ -1,6 +1,7 @@
 #! /bin/bash
 source ./path_config.sh
 source ./install_venv_new.sh
+source $VENV_NEW_DIR/bin/activate
 
 # requires cython for pynest
 pip install cython 
@@ -64,3 +65,5 @@ $NEST_NEW_DIR/bin/nest_vars.sh
 
 ### add nest Python paths
 echo "$NEST_NEW_DIR/lib/python2.7/site-packages/" > $VENV_NEW_DIR/lib/python2.7/site-packages/nest.pth
+
+deactivate

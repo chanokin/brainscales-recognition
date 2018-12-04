@@ -2,6 +2,7 @@
 
 source ./path_config.sh
 source ./install_venv_new.sh
+source $VENV_NEW_DIR/bin/activate
 
 ### ----------------------------------------------------------------- #
 ###
@@ -56,3 +57,5 @@ echo "------------------ done cleaning -----------------\n"
 
 cd ../..
 rm -fr tmp_cypress
+
+deactivate
