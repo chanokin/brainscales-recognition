@@ -11,11 +11,11 @@ int main(int argc, const char *argv[])
     }
 
     // Create the network description and run it
-    Network net = Network()
-        .add_population<SpikeSourceArray>("source", 1, {100.0, 200.0, 300.0})
-        .add_population<IfCondExp>("neuron", 4, {}, {"spikes"})
-        .add_connection("source", "neuron", Connector::all_to_all(0.16))
-        .run(argv[1]);
+    Network net = Network();
+    net.add_population<SpikeSourceArray>("source", 1, {100.0, 200.0, 300.0});
+    net.add_population<IfCondExp>("neuron", 4, {}, {"spikes"});
+    net.add_connection("source", "neuron", Connector::all_to_all(0.16));
+    net.run(argv[1]);
 
     // Print the results
     for (auto neuron: net.population<IfCondExp>("neuron")) {
