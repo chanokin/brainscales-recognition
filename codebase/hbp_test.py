@@ -13,11 +13,11 @@ hw_config = {'WAFER_MODULE': wafer, 'HICANN': hicann,
             'SOFTWARE_VERSION':'nmpm_software/current'}
 
 
-job_id = client.submit_job(source='./portal_test.py',
+job_id = client.submit_job(source='https://github.com/chanokin/brainscales-recognition/codebase',
                       platform=nmpi.BRAINSCALES,
                       collab_id=34089,
                       config=hw_config,
-                      command="run.py --wafer {} --hicann {}".format(wafer, hicann),
+                      command="portal_test.py --wafer {} --hicann {}".format(wafer, hicann),
             )
 
 pprint(job_id)
