@@ -11,13 +11,35 @@
 \graphicspath{{images/}}
 
 \author{Garibaldi Pineda Garc{\'i}a}
-\title{Report 26-11-2018}
+\title{Report 3-12-2018}
 
 \begin{document}
 
 \maketitle
 
+\section{Olfactory pathway}
+
+Antennae have multiple receptors per chemical; an odour is composed of one or more chemicals. 
+These receptors trigger activity of Receptor Neurons (RNs), this seems to be a one-to-one connection. 
+Many RN reach a single glomerulus (many-to-one connection) which are complex structures in the Antennal Lobe (AL) consisting of both excitatory and inhibitory neurons. 
+Glomeruli connect to projection neurons (PNs) which output signals (spikes?) representing the concentration (?) of a chemical (combination?).
+
+    \begin{figure}[htb]
+    \begin{center}
+        \includegraphics[width=0.9\textwidth]{olfactory-pathway-v2}
+    \end{center}
+    \end{figure}
+
+Projection neurons have excitatory, sparse connectivity with neurons in the Mushroom Body (MB). 
+There is lateral inhibition in the MB which keeps activity regulated (sparse?).
+Output neurons in the MB can classify odours, this is, activity in an output neuron indicates the presence of a combination of chemicals in the antennae.
+
+
+
 \section{Software environment}
+I've been looking at software on top of which we can use to build the project instead of developing a full framework ourselves (no need to reinvent the wheel).
+I'm currently stuck on getting the HBP portal to run BrainScaleS simulations, not even the example provided in the portal works!
+
 \subsection{NEST and PyNN}
 The default configuration for BrainScaleS (BSS) requires PyNN 0.7 (deprecated); if we want to do tests on the local host with Nest, we need to use version 2.2.2.\\
 
@@ -35,21 +57,12 @@ Unfortunately, Cypress supports Nest only with PyNN 0.8 which makes it a bit inc
 There is a bug in the \verb CMakeLists.txt    file
 
 \begin{Verbatim}[commandchars=\\\{\}]
-	\textcolor{red}{
-	- FILES ${CMAKE_BINARY_DIR}/cypress/config.h
-	}
-	\textcolor{blue}{
-	+ FILES ${CMAKE_BINARY_DIR}/include/cypress/config.h
-	}
-\end{Verbatim}
-
-\begin{Verbatim}[commandchars=\\\{\}]
-	\textcolor{red}{
-	- set(STATIC_LINKING TRUE CACHE BOOL "True for static linking") 
-	}
-	\textcolor{blue}{
-	+ set(STATIC_LINKING FALSE CACHE BOOL "True for static linking") 
-	}
+  \textcolor{red}{
+  - FILES ${CMAKE_BINARY_DIR}/cypress/config.h
+  }
+  \textcolor{blue}{
+  + FILES ${CMAKE_BINARY_DIR}/include/cypress/config.h
+  }
 \end{Verbatim}
 
 
@@ -64,7 +77,7 @@ Since it is a Python library it would allow to easily integrate the PyNN-BSS wor
 
 \subsection{Open Beagle}
 Open Beagle is an evolutionary computing framework for the C++ language. 
-The design/usage philosophy is similar to DEAP and the interaction with Cypress would \underline{hopefully} be easy.\\
+The design/usage philosophy is similar to DEAP and the interaction with Cypress may (hopefully) be easy.\\
 
 \url{https://github.com/chgagne/beagle}
 
