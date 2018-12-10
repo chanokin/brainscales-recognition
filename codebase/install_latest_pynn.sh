@@ -21,8 +21,13 @@ pip install jinja2
 pip install csa
 pip install PyNN
 
+# pip install PyNN==0.7.5 --target="$PYNN7_DIR"
+# touch $PYNN7_DIR/__init__.py
+
 git clone https://github.com/HumanBrainProject/hbp-neuromorphic-client
 cd hbp-neuromorphic-client
 python setup.py install --user
+
+
 
 deactivate

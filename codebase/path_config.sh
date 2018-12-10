@@ -8,5 +8,7 @@ NEST_NEW_DIR="$BASE_DIR/nest_latest"
 NEUROSIM_DIR="$BASE_DIR/neurosim"
 CYPRESS_DIR="$BASE_DIR/cypress"
 PAGMO_DIR="$BASE_DIR/pagmo"
-
-
+CUDA_DIR="/usr/local/cuda"
+GENN_DIR="$BASE_DIR/genn"
+PYNN_GENN_DIR="$BASE_DIR/pynn_genn"
+PYNN7_DIR="$BASE_DIR/pynn7"
