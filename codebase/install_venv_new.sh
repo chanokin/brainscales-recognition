@@ -39,6 +39,8 @@ if [ ! -d "$VENV_NEW_DIR" ]; then
     echo "# append GENN lib path" >> "$VENV_NEW_DIR/bin/activate"
     echo "export LD_LIBRARY_PATH=\$GENN_PATH/lib/lib:\$LD_LIBRARY_PATH" >> "$VENV_NEW_DIR/bin/activate"
 
+    echo "$SPIKEVO_DIR" > $VENV_NEW_DIR/lib/python2.7/site-packages/spikevo.pth
+
     $VENV_NEW_DIR/bin/pip install -U pip
     deactivate
 else
