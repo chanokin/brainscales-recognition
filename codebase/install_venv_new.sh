@@ -36,12 +36,24 @@ if [ ! -d "$VENV_NEW_DIR" ]; then
     echo "export PATH=\$GENN_PATH/lib/bin:\$PATH" >> "$VENV_NEW_DIR/bin/activate"
 
     echo "" >> "$VENV_NEW_DIR/bin/activate"
-    echo "# append GENN lib path" >> "$VENV_NEW_DIR/bin/activate"
-    echo "export LD_LIBRARY_PATH=\$GENN_PATH/lib/lib:\$LD_LIBRARY_PATH" >> "$VENV_NEW_DIR/bin/activate"
+    echo "# create the PYNN7_PATH env variable" >> "$VENV_NEW_DIR/bin/activate"
+    echo "export PYNN7_PATH=$PYNN7_DIR" >> "$VENV_NEW_DIR/bin/activate"
+
+    echo "" >> "$VENV_NEW_DIR/bin/activate"
+    echo "# create the NEST222_PATH env variable" >> "$VENV_NEW_DIR/bin/activate"
+    echo "export NEST222_PATH=$NEST_DIR" >> "$VENV_NEW_DIR/bin/activate"
+
+    echo "" >> "$VENV_NEW_DIR/bin/activate"
+    echo "# create the PYNEST222_PATH env variable" >> "$VENV_NEW_DIR/bin/activate"
+    echo "export PYNEST222_PATH=$NEST_DIR/lib/python2.7/site-packages/" >> "$VENV_NEW_DIR/bin/activate"
 
     echo "$SPIKEVO_DIR" > $VENV_NEW_DIR/lib/python2.7/site-packages/spikevo.pth
 
-    $VENV_NEW_DIR/bin/pip install -U pip
+    
+
+    $VENV_NEW_DIR/bin/pip install numpy
+    $VENV_NEW_DIR/bin/pip install scipy
+    $VENV_NEW_DIR/bin/pip install matplotlib
     deactivate
 else
     source $VENV_NEW_DIR/bin/activate

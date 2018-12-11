@@ -1,0 +1,30 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+\usepackage{graphicx}
+\usepackage{todonotes}
+\usepackage{url}
+\usepackage{fancyvrb}
+\usepackage{xcolor}
+\graphicspath{{images/}}
+
+\author{Garibaldi Pineda Garc{\'i}a}
+\title{Report 10-12-2018}
+
+\begin{document}
+
+\maketitle
+
+\section{Identifying written characters}
+
+Part of the project will be to identify/classify hand-written characters from the \emph{omniglot}\footnote{https://github.com/brendenlake/omniglot} dataset\cite{omniglot}. 
+We pre-processed the characters in the library to centre them using their centre of mass as the middle of the image.
+We will normalize pixel values so that every character 'emits the same energy'. 
+In the end we would like to make every character send the same number of spikes to the classifying network.
+
+
+\bibliographystyle{unsrt}
+\bibliography{bibliography}
+\end{document}

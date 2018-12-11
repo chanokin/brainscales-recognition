@@ -1,6 +1,7 @@
 #! /bin/bash
 source ./path_config.sh
-source ./install_venv2.sh
+source ./install_venv_new.sh
+source $VENV_NEW_DIR/bin/activate
 
 # create temporary install dir
 mkdir nest_install
@@ -39,4 +40,6 @@ echo "--------------------------------------------------\n"
 echo "------------------ done removing -----------------\n"
 
 # add nest Python paths
-echo "$NEST_DIR/lib/python2.7/site-packages/" > $VENV_DIR/lib/python2.7/site-packages/nest.pth
+# echo "$NEST_DIR/lib/python2.7/site-packages/" > $VENV_DIR/lib/python2.7/site-packages/nest.pth
+
+deactvate
