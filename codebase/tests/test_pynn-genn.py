@@ -53,7 +53,7 @@ syn = pynn.StaticSynapse(weight=w, delay=syn_delay)
 proj = pynn.Projection(inputs, neurons,
         pynn.OneToOneConnector(), syn)
 
-pynn.run(1000)
+pynn.run(1000.0)
 data = neurons.get_data().segments[0]
 out_spikes = np.array(data.spiketrains)
 

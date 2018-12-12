@@ -5,11 +5,8 @@ import numpy as np
 import os
 import sys
 import argparse
-
-GENN = 'genn'
-NEST = 'nest'
-BSS  = 'brainscales'
-supported_backends = [GENN, NEST, BSS]
+from spikevo import *
+from spikevo.pynn_transforms import PyNNAL
 
 parser = argparse.ArgumentParser()
 parser.add_argument('-b', '--backend', help='available %s'%supported_backends, 
@@ -37,7 +34,8 @@ elif backend == BSS:
     from pymarocco.coordinates import LogicalNeuron
     from pymarocco.results import Marocco 
 
-import spikevo.pynn_transforms as pynnx
+
+pynnx = PyNNAL(pynn)
 
 
 N_NEURONS = 50
@@ -76,23 +74,24 @@ neuron_parameters = {
 
 pynn.setup(timestep=1.0, min_delay=1.0)
 
-neurons = pynnx.Pop(pynn, N_NEURONS, 
-            pynn.IF_cond_exp, neuron_parameters)
+neurons = pynnx.Pop(N_NEURONS, pynn.IF_cond_exp, neuron_parameters)
 neurons.record('spikes')
 
-inputs = pynnx.Pop(pynn, N_NEURONS, 
-            pynn.SpikeSourcePoisson,
+inputs = pynnx.Pop(N_NEURONS, pynn.SpikeSourcePoisson,
             {'rate': 10.0},
          )
 
 
-proj = pynnx.Proj(pynn, inputs, neurons,
-        pynn.OneToOneConnector, weights=w, delays=syn_delay)
+proj = pynnx.Proj(inputs, neurons, pynn.OneToOneConnector, 
+        weights=w, delays=syn_delay)
 
 pynn.run(sim_time)
 
-out_spikes = pynnx.get_spikes(pynn, neurons)
-weights = pynnx.get_weights(pynn, proj)
+out_spikes = pynnx.get_spikes(neurons)
+if backend != GENN:
+    weights = pynnx.get_weights(proj)
+else:
+    weights = np.zeros((N_NEURONS, N_NEURONS))
 
 pynn.end()
 
