@@ -1,3 +1,4 @@
+from __future__ import print_function
 import matplotlib 
 #matplotlib.use('Agg')
 import matplotlib.pyplot as plt
@@ -8,32 +9,19 @@ import argparse
 from spikevo import *
 from spikevo.pynn_transforms import PyNNAL
 
+
+
+
+    
 parser = argparse.ArgumentParser()
 parser.add_argument('-b', '--backend', help='available %s'%supported_backends, 
     default=GENN)
 
 args = parser.parse_args()
 backend = args.backend
-if backend not in supported_backends:
-    raise Exception("Backend not supported")
-    
-if backend == GENN:
-    import pynn_genn as pynn
-elif backend == NEST:
-    sys.path.insert(0, os.environ['PYNEST222_PATH'])
-    sys.path.insert(0, os.environ['PYNN7_PATH'])
-    import pyNN.nest as pynn
-elif backend == BSS:
-    from pyhalbe import HICANN
-    import pyhalbe.Coordinate as C
-    from pysthal.command_line_util import init_logger
+pynn = backend_setup(backend)
 
-    import pyhmf as pynn
-    from pymarocco import PyMarocco, Defects
-    from pymarocco.runtime import Runtime
-    from pymarocco.coordinates import LogicalNeuron
-    from pymarocco.results import Marocco 
-
+print(pynn.__name__)
 
 pynnx = PyNNAL(pynn)
 
@@ -106,8 +94,8 @@ ax.set_ylabel('Neuron id')
 
 ax = plt.subplot(1, 2, 2)
 plt.imshow(weights)
-ax.set_xlabel('Pre id')
-ax.set_ylabel('Post id')
+ax.set_xlabel('Post id')
+ax.set_ylabel('Pre id')
 
 plt.savefig("output.pdf")
 plt.show()

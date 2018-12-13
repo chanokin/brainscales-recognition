@@ -7,6 +7,7 @@ token = client.token
 # pprint(client)
 # pprint(token)
 
+wait_time_s = 10
 wafer = 33
 hicann = 297
 hw_config = {'WAFER_MODULE': wafer, 'HICANN': hicann, 
@@ -27,7 +28,8 @@ job = client.get_job(job_id, with_log=True)
 # pprint(job)
 
 while client.job_status(job_id) != 'finished':
-    time.sleep(1)
+    pprint("Not finished, waiting {} seconds".format(wait_time_s))
+    time.sleep(wait_time_s)
 
 # pprint(client.job_status(job_id))
 
