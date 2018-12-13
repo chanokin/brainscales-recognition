@@ -23,15 +23,4 @@ def backend_setup(backend):
     
     return pynn_local
 
-def marocco_setup():
-    from pyhalbe import HICANN
-    import pyhalbe.Coordinate as C
-    from pysthal.command_line_util import init_logger
-    from pymarocco import PyMarocco, Defects
-    from pymarocco.runtime import Runtime
-    from pymarocco.coordinates import LogicalNeuron
-    from pymarocco.results import Marocco 
-
-    marocco = PyMarocco()
-    marocco.backend = PyMarocco.Hardware
 

@@ -26,7 +26,7 @@ print(pynn.__name__)
 pynnx = PyNNAL(pynn)
 
 
-N_NEURONS = 50
+N_NEURONS = 49
 w = 0.01
 syn_delay = 1.
 sim_time = 1000.

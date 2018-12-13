@@ -207,7 +207,7 @@ class PyNNAL(object):
                     synapse, receptor_type=target, label=label)
 
 
-    def get_spikes(self, pop):
+    def get_spikes(self, pop, segment=0):
         sim = self.sim
         if self._ver() == 7:
             data = np.array(pop.getSpikes())
@@ -215,8 +215,18 @@ class PyNNAL(object):
             return [data[np.where(data[:, 0] == nid)][:, 1] if nid in ids else []
                     for nid in range(pop.size)]
         else:
-            data = pop.get_data().segments[0]
+            data = pop.get_data().segments[segment]
             return np.array(data.spiketrains)
 
     def get_weights(self, proj, format='array'):
         return np.array(proj.getWeights(format=format))
+
+
+    def set_pop_attr(self, pop, attr_name, attr_val):
+        if self._ver() == 7:
+            pop.set(attr_name, attr_val)
+        else:
+            pop.set(**{attr_name: attr_val})
+
+
+

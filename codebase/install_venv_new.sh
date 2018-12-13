@@ -6,7 +6,7 @@ source ./path_config.sh
 if [ ! -d "$VENV_NEW_DIR" ]; then
     virtualenv $VENV_NEW_DIR
     source $VENV_NEW_DIR/bin/activate
-
+    
     echo "" >> "$VENV_NEW_DIR/bin/activate"
     echo "# add codebase to the PATH env variable" >> "$VENV_NEW_DIR/bin/activate"
     echo "export PATH=$BASE_DIR:\$PATH" >> "$VENV_NEW_DIR/bin/activate"
@@ -54,6 +54,8 @@ if [ ! -d "$VENV_NEW_DIR" ]; then
     $VENV_NEW_DIR/bin/pip install numpy
     $VENV_NEW_DIR/bin/pip install scipy
     $VENV_NEW_DIR/bin/pip install matplotlib
+    $VENV_NEW_DIR/bin/pip install Pillow
+    $VENV_NEW_DIR/bin/pip install Pillow-PIL
     deactivate
 else
     source $VENV_NEW_DIR/bin/activate
