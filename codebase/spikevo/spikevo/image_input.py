@@ -1,12 +1,6 @@
 import numpy as np
+from . import *
 
-RED, GREEN, BLUE = range(3)
-ON, OFF = range(2)
-CHAN2COLOR = {ON: GREEN, OFF: RED}
-CHAN2TXT = {ON: 'GREEN', OFF: 'RED'}
-RATE = 'rate'
-ON_OFF = 'on-off'
-IMAGE_ENCODINGS = [RATE, ON_OFF]
 class SpikeImage(object):
     
     def __init__(self, width, height, encoding=ON_OFF, 
@@ -101,32 +95,122 @@ class SpikeImage(object):
             """OFF means first and only channel for RATE encoding,
                 this gets translated into a RED == 0 index in the image
             """
-            return {
-                OFF: pynnx.Pop(self._size, pynnx.sim.SpikeSourcePoisson, 
-                    neuron_parameters, label='Rate encoded image')
-            }
+            if pynnx._sim_name == NEST:
+                return {
+                    OFF: NestImagePopulation(pynnx,
+                        self._size, pynnx.sim.SpikeSourcePoisson, 
+                        neuron_parameters, label='Rate encoded image')
+                }
+            else:
+                return {
+                    OFF: pynnx.Pop(self._size, pynnx.sim.SpikeSourcePoisson, 
+                        neuron_parameters, label='Rate encoded image')
+                }
         elif self._encoding == ON_OFF:
-            return {
-                OFF: pynnx.Pop(self._size, pynnx.sim.SpikeSourcePoisson, 
-                    neuron_parameters[OFF], label='OFF - rate encoded image'),
-                ON: pynnx.Pop(self._size, pynnx.sim.SpikeSourcePoisson, 
-                    neuron_parameters[ON], label='ON - rate encoded image')
-            }
+            if pynnx._sim_name == NEST:
+                return {
+                    OFF: NestImagePopulation(pynnx,
+                        self._size, pynnx.sim.SpikeSourcePoisson, 
+                        neuron_parameters[OFF], label='OFF - rate encoded image'),
+                    ON: NestImagePopulation(pynnx,
+                        self._size, pynnx.sim.SpikeSourcePoisson, 
+                        neuron_parameters[ON], label='ON - rate encoded image')
+                }
+            else:
+                return {
+                    OFF: pynnx.Pop(self._size, pynnx.sim.SpikeSourcePoisson, 
+                        neuron_parameters[OFF], label='OFF - rate encoded image'),
+                    ON: pynnx.Pop(self._size, pynnx.sim.SpikeSourcePoisson, 
+                        neuron_parameters[ON], label='ON - rate encoded image')
+                }
 
     def create_pops_array(self, pynnx, neuron_parameters={ON:{}, OFF:{}}):
         if self._encoding == RATE:
             """OFF means first and only channel for RATE encoding,
                 this gets translated into a RED == 0 index in the image
             """
-            return {
-                OFF: pynnx.Pop(self._size, pynnx.sim.SpikeSourceArray, 
-                    neuron_parameters, label='Rate encoded image')
-            }
+            if pynnx._sim_name == NEST:
+                return {
+                    OFF: NestImagePopulation(pynnx, self._size, 
+                        pynnx.sim.SpikeSourceArray, 
+                        neuron_parameters, label='Rate encoded image')
+                }
+            else:
+                return {
+                    OFF: pynnx.Pop(self._size, pynnx.sim.SpikeSourceArray, 
+                        neuron_parameters, label='Rate encoded image')
+                }
         elif self._encoding == ON_OFF:
-            return {
-                OFF: pynnx.Pop(self._size, pynnx.sim.SpikeSourceArray, 
-                    neuron_parameters[OFF], label='OFF - rate encoded image'),
-                ON: pynnx.Pop(self._size, pynnx.sim.SpikeSourceArray, 
-                    neuron_parameters[ON], label='ON - rate encoded image')
-            }
+            if pynnx._sim_name == NEST:
+                return {
+                    OFF: NestImagePopulation(pynnx,
+                        self._size, pynnx.sim.SpikeSourceArray, 
+                        neuron_parameters[OFF], label='OFF - rate encoded image'),
+                    ON: NestImagePopulation(pynnx,
+                        self._size, pynnx.sim.SpikeSourceArray, 
+                        neuron_parameters[ON], label='ON - rate encoded image')
+                }
+            else:
+                return {
+                    OFF: pynnx.Pop(self._size, pynnx.sim.SpikeSourceArray, 
+                        neuron_parameters[OFF], label='OFF - rate encoded image'),
+                    ON: pynnx.Pop(self._size, pynnx.sim.SpikeSourceArray, 
+                        neuron_parameters[ON], label='ON - rate encoded image')
+                }
 
+
+class NestImagePopulation(object):
+    def __init__(self, pynnal, size, neuron_class, neuron_params, label=''):
+        if NEST not in pynnal._sim_name:
+            raise Exception(
+                "Nest Image cannot be instantiated with the current backend ({})".\
+                    format(pynnal._sim_name))
+        self.size = size
+        self._pynnal = pynnal
+        self._neuron_class = neuron_class
+        self._neuron_params = neuron_params
+        self._label = label
+        
+        self.setup_cam_pop(size, neuron_class, neuron_params, label=label)
+        
+    def record(self, what):
+        self.out.record(what)
+    
+    def getSpikes(self, **kwargs):
+        return self.out.getSpikes(**kwargs)
+        
+    def set(self, attr, val):
+        for i in len(val):
+            self._dummy_pops[i].set(attr, val)
+    
+    def setup_cam_pop(self, pop_size, neuron_class, neuron_parameters, label=''):
+        
+        param_name = 'spike_times' if 'Array' in '%s'%neuron_class else 'rate'
+        pynnx = self._pynnal
+        sim = pynnx.sim
+        out_cell = sim.IF_curr_exp
+        out_params = { 
+            'cm': 0.25, 'i_offset': 0.0, 'tau_m': 10.0, 'tau_refrac': 3.0,
+            'tau_syn_E': 1., 'tau_syn_I': 2., 'v_reset': -80.0,
+            'v_rest': -65.0, 'v_thresh': -55.4
+        }
+        w2s = 4.5
+        dmy_pops = []
+        dmy_prjs = []
+        cam_pop = sim.Population(pop_size, out_cell, out_params, label=label)
+
+        for i in range(pop_size):
+            dmy_pops.append(
+                sim.Population(1, neuron_class, 
+                    {param_name: neuron_parameters[param_name][i]},
+                    label='{} pixel ({})'.format(label, i)))
+            conn = [(0, i, w2s, 1)]
+            dmy_prjs.append(
+                sim.Projection(dmy_pops[i], cam_pop,
+                    sim.FromListConnector(conn),
+                    target='excitatory', label='dmy to cam {}'.format(i)))
+
+
+        self.out = cam_pop
+        self._dummy_pops = dmy_pops
+        self._dummy_projs = dmy_prjs

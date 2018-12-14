@@ -13,7 +13,7 @@ from spikevo.pynn_transforms import PyNNAL
 from spikevo.image_input import SpikeImage, CHAN2COLOR, CHAN2TXT
 from pprint import pprint 
 
-POISSON_SOURCES = bool(1)
+POISSON_SOURCES = bool(0)
 
 parser = argparse.ArgumentParser()
 parser.add_argument('-b', '--backend', help='available %s'%supported_backends, 
@@ -31,13 +31,14 @@ pynnx = PyNNAL(pynn)
 image = ndimage.imread(image_path, flatten=True).astype('float32')
 image /= 255.0
 plt.figure()
+plt.suptitle('input image')
 plt.imshow(image)
 # plt.show()
 
 height, width = image.shape
 
 N_NEURONS = height*width
-w = 0.01
+w = 0.025
 syn_delay = 1.
 sim_time = 100.
 
@@ -80,8 +81,21 @@ for ch in spike_rates:
             print(CHAN2TXT[ch], row, col)
         rate_render[row, col, c] = r
         
-plt.figure
+plt.figure()
+plt.suptitle('rate image')
 plt.imshow(rate_render)
+
+spike_render = np.zeros((height, width, 3))
+for ch in spike_rates:
+    c = CHAN2COLOR[ch]
+    for i, times in enumerate(image_spikes[ch]):
+        row, col = i//width, i%width
+        for t in times:
+            spike_render[row, col, c] += 1
+        
+plt.figure()
+plt.suptitle('spike image')
+plt.imshow(spike_render)
 
 neurons = {}
 projs = {}
@@ -94,11 +108,25 @@ for ch in image_pops:
 
 pynn.run(sim_time)
 
+in_spikes = {}
+for ch in image_pops:
+    in_spikes[ch] = pynnx.get_spikes(image_pops[ch])
+
 out_spikes = {}
 for ch in image_pops:
     out_spikes[ch] = pynnx.get_spikes(neurons[ch])
 
 pynn.end()
+
+
+fig = plt.figure()
+plt.suptitle('input source spikes')
+ax = plt.subplot(1, 1, 1)
+spike_render = spk_image.spikes_to_image(in_spikes)
+plt.imshow(spike_render)
+ax.set_xlabel('Post id')
+ax.set_ylabel('Pre id')
+
 
 fig = plt.figure(figsize=(10, 10))
 ax = plt.subplot(1, 1, 1)

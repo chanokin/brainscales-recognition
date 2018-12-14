@@ -6,6 +6,14 @@ BSS  = 'brainscales'
 BSS_BACK = 'pyhmf'
 supported_backends = [GENN, NEST, BSS]
 
+RED, GREEN, BLUE = range(3)
+ON, OFF = range(2)
+CHAN2COLOR = {ON: GREEN, OFF: RED}
+CHAN2TXT = {ON: 'GREEN', OFF: 'RED'}
+RATE = 'rate'
+ON_OFF = 'on-off'
+IMAGE_ENCODINGS = [RATE, ON_OFF]
+
 def backend_setup(backend):
     if backend not in supported_backends:
         raise Exception("Backend not supported")

@@ -26,7 +26,7 @@ print(pynn.__name__)
 pynnx = PyNNAL(pynn)
 
 
-N_NEURONS = 49
+N_NEURONS = 2
 w = 0.025
 syn_delay = 1.
 sim_time = 1000.
@@ -64,9 +64,9 @@ pynn.setup(timestep=1.0, min_delay=1.0)
 
 neurons = pynnx.Pop(N_NEURONS, pynn.IF_cond_exp, neuron_parameters)
 neurons.record('spikes')
-
-inputs = pynnx.Pop(N_NEURONS, pynn.SpikeSourcePoisson,
-            {'rate': [10.0]*N_NEURONS},
+print([[10]]*N_NEURONS)
+inputs = pynnx.Pop(N_NEURONS, pynn.SpikeSourceArray,
+            {'spike_times': [[10]]*N_NEURONS},
          )
 inputs.record('spikes')
 
@@ -86,21 +86,20 @@ else:
 pynn.end()
 
 fig = plt.figure(figsize=(10, 5))
-ax = plt.subplot(1, 1, 1)
+ax = plt.subplot(1, 2, 1)
 for nid, times in enumerate(in_spikes):
-    plt.plot(times, np.ones_like(times)*nid, '+g', markersize=5)
+    plt.plot(times, np.ones_like(times)*nid, 'xg', markersize=5)
 for nid, times in enumerate(out_spikes):
-    plt.plot(times, np.ones_like(times)*nid, 'xb', markersize=5)
-
-ax.set_xlim(0, sim_time)
-ax.set_ylim(0, N_NEURONS)
+    plt.plot(times, np.ones_like(times)*nid, '+b', markersize=5)
+# ax.set_xlim(0, sim_time)
+# ax.set_ylim(0, N_NEURONS)
 ax.set_xlabel('Time [ms]')
 ax.set_ylabel('Neuron id')
 
-# ax = plt.subplot(1, 2, 2)
-# plt.imshow(weights)
-# ax.set_xlabel('Post id')
-# ax.set_ylabel('Pre id')
+ax = plt.subplot(1, 2, 2)
+plt.imshow(weights)
+ax.set_xlabel('Post id')
+ax.set_ylabel('Pre id')
 
 plt.savefig("output.pdf")
 plt.show()

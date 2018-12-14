@@ -1,6 +1,8 @@
 import numpy as np
 import numbers
 from . import *
+from .image_input import NestImagePopulation
+
 import os
 try:
     from pyhalbe import HICANN
@@ -178,6 +180,10 @@ class PyNNAL(object):
         sim = self.sim
         
         if self._ver() == 7:
+            """ Extract output population from NestImagePopulation """
+            pre_pop = source_pop.out if isinstance(source_pop, NestImagePopulation)\
+                        else source_pop
+
             tmp = conn_params.copy()
             tmp['weights'] = weights
             tmp['delays'] = delays
@@ -191,7 +197,7 @@ class PyNNAL(object):
             else:
                 syn_dyn = None
 
-            return sim.Projection(source_pop, dest_pop, conn,
+            return sim.Projection(pre_pop, dest_pop, conn,
                     target=target, synapse_dynamics=syn_dyn, label=label)
             
         else:
