@@ -15,7 +15,10 @@
    id="svg2"
    version="1.1"
    inkscape:version="0.91 r13725"
-   sodipodi:docname="olfactory-pathway-v2.svg">
+   sodipodi:docname="olfactory-pathway-v2.svg"
+   inkscape:export-filename="./olfactory-pathway-v2.svg.png"
+   inkscape:export-xdpi="150.03474"
+   inkscape:export-ydpi="150.03474">
   <defs
      id="defs4">
     <marker
@@ -349,9 +352,9 @@
      borderopacity="1.0"
      inkscape:pageopacity="0.0"
      inkscape:pageshadow="2"
-     inkscape:zoom="0.35"
-     inkscape:cx="1670.1747"
-     inkscape:cy="446.38179"
+     inkscape:zoom="0.24748737"
+     inkscape:cx="1142.2019"
+     inkscape:cy="481.31526"
      inkscape:document-units="px"
      inkscape:current-layer="layer1"
      showgrid="false"
@@ -372,7 +375,7 @@
         <dc:format>image/svg+xml</dc:format>
         <dc:type
            rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
-        <dc:title></dc:title>
+        <dc:title />
       </cc:Work>
     </rdf:RDF>
   </metadata>

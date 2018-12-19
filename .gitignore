@@ -14,11 +14,13 @@ cypress/
 neurosim/
 pagmo/
 hbp-neuromorphic-client/
-job_*/
-.ipynb_checkpoints/
 genn/
 pynn_genn/
 pynn7/
+learning_to_learn/
+pypet
+job_*/
+.ipynb_checkpoints/
 */tests/*.pdf
 */tests/*.mk
 *_CODE/
