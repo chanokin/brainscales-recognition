@@ -29,25 +29,40 @@ class PyNNAL(object):
             raise Exception("Not supported simulator ({})".format(sim_name))
 
         self._first_run = True
+
+    def __del__(self):
+        try:
+            self.end()
+        except:
+            pass
+
+    @property
+    def sim(self):
+        return self._sim
     
-    def setup(self, timestep=1.0, min_delay=1.0, **kwargs):
+    @property
+    def sim_name(self):
+        return self._sim_name
+
+
+    def setup(self, timestep=1.0, min_delay=1.0, per_sim_params={}, **kwargs):
         setup_args = {'timestep': timestep, 'min_delay': min_delay}
-        self._extra_config = kwargs
+        self._extra_config = per_sim_params
         
-        if self.sim_name == BSS: #do extra setup for BrainScaleS
-            wafer = kwargs['wafer']
+        # if self.sim_name == BSS: #do extra setup for BrainScaleS
+        #     wafer = kwargs['wafer']
             
-            self.init_logging()
+        #     self.init_logging()
             
-            marocco, runtime = self._init_marocco(wafer)
-            self._marocco = marocco
-            self._runtime = runtime
+        #     marocco, runtime = self._init_marocco(wafer)
+        #     self._marocco = marocco
+        #     self._runtime = runtime
             
-            setup_args['marocco'] = marocco
-            setup_args['marocco_runtime'] = runtime
+        #     setup_args['marocco'] = marocco
+        #     setup_args['marocco_runtime'] = runtime
         
         self._setup_args = setup_args
-        self.sim.setup(**setup_args)
+        self._sim.setup(**setup_args)
 
     def init_logging(self):
         init_logger("WARN", [
@@ -149,15 +164,9 @@ class PyNNAL(object):
             if skip_marocco_checks:
                 marocco.verification = PyMarocco.Skip
                 marocco.checkl1locking = PyMarocco.SkipCheck
-
-    @property
-    def sim(self):
-        return self._sim
     
-    @property
-    def sim_name(self):
-        return self._sim_name
-
+    def end(self):
+        self._sim.end()
     
     def _is_v9(self):
         return ('genn' in self.sim.__name__)
@@ -165,8 +174,13 @@ class PyNNAL(object):
     def _ver(self):
         return (9 if self._is_v9() else 7)
 
-
+    def get_obj(self, obj_name):
+        return getattr(self._sim, obj_name)
+    
     def Pop(self, size, cell_class, params, label=None):
+        if type(cell_class) == type(u''): #convert from text representation to object
+            cell_class = self.get_obj(cell_class)
+
         sim = self.sim
         
         if self._ver() == 7:
@@ -177,6 +191,9 @@ class PyNNAL(object):
 
     def Proj(self, source_pop, dest_pop, conn_class, weights, delays, 
              target='excitatory', stdp=None, label=None, conn_params={}):
+        if type(conn_class) == type(u''): #convert from text representation to object
+            conn_class = self.get_obj(conn_class)
+
         sim = self.sim
         
         if self._ver() == 7:
@@ -218,11 +235,11 @@ class PyNNAL(object):
         if self._ver() == 7:
             data = np.array(pop.getSpikes())
             ids = np.unique(data[:, 0])
-            return [data[np.where(data[:, 0] == nid)][:, 1] if nid in ids else []
-                    for nid in range(pop.size)]
+            return [data[np.where(data[:, 0] == nid)][:, 1].tolist() \
+                        if nid in ids else [] for nid in range(pop.size)]
         else:
             data = pop.get_data().segments[segment]
-            return np.array(data.spiketrains)
+            return data.spiketrains
 
     def get_weights(self, proj, format='array'):
         return np.array(proj.getWeights(format=format))
@@ -234,5 +251,30 @@ class PyNNAL(object):
         else:
             pop.set(**{attr_name: attr_val})
 
+    def check_rec(self, recording):
+        if recording not in ['spikes', 'v', 'gsyn']:
+            raise Exception('Recording {} is not supported'.format(recording))
 
+
+    def set_recording(self, pop, recording):
+        self.check_rec(recording)
+        if self._ver() == 7:
+            if recording == 'spikes':
+                pop.record()
+            else:
+                rec = getattr(pop, 'record_'+recording) #indirectly get method
+                rec() #execute method :ugly-a-f:
+        else:             
+            pop.record(recording)
+
+    def get_record(self, pop, recording):
+        self.check_rec(recording)
+        if recording == 'spikes':
+            return self.get_spikes(pop)
+        elif self._ver() == 7:
+            record = getattr(pop, 'get_'+recording) #indirectly get method
+            return record() #execute method :ugly-a-f:
+        else:
+            pop.get_data().segments[0].filter(name=recording)
+        
 

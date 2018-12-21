@@ -56,6 +56,7 @@ if [ ! -d "$VENV_NEW_DIR" ]; then
     $VENV_NEW_DIR/bin/pip install matplotlib
     $VENV_NEW_DIR/bin/pip install Pillow
     $VENV_NEW_DIR/bin/pip install Pillow-PIL
+    $VENV_NEW_DIR/bin/pip install pyro4
     deactivate
 else
     source $VENV_NEW_DIR/bin/activate
