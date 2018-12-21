@@ -49,121 +49,54 @@ class PyNNAL(object):
         setup_args = {'timestep': timestep, 'min_delay': min_delay}
         self._extra_config = per_sim_params
         
-        # if self.sim_name == BSS: #do extra setup for BrainScaleS
-        #     wafer = kwargs['wafer']
+        if self.sim_name == BSS: #do extra setup for BrainScaleS
+            marocco = PyMarocco()
+            marocco.backend = PyMarocco.Hardware
+            marocco.calib_path = per_sim_params.get('calib_path',
+                            "/wang/data/calibration/brainscales/WIP-2018-09-18")
+            marocco.defects.path = marocco.calib_path
+            marocco.verification = PyMarocco.Skip
+            marocco.checkl1locking = PyMarocco.SkipCheck
             
-        #     self.init_logging()
-            
-        #     marocco, runtime = self._init_marocco(wafer)
-        #     self._marocco = marocco
-        #     self._runtime = runtime
-            
-        #     setup_args['marocco'] = marocco
-        #     setup_args['marocco_runtime'] = runtime
+            setup_args['marocco'] = marocco
+            self.marocco = marocco
         
         self._setup_args = setup_args
         self._sim.setup(**setup_args)
 
-    def init_logging(self):
-        init_logger("WARN", [
-                    ("guidebook", "DEBUG"),
-                    ("marocco", "DEBUG"),
-                    ("Calibtic", "DEBUG"),
-                    ("sthal", "INFO")
-                ])
-        self._log = pylogging.get("guidebook")
-    
-    def _init_marocco(self, wafer):
-        marocco = PyMarocco()
-        marocco.default_wafer = C.Wafer(wafer)
-        runtime = Runtime(marocco.default_wafer)
-
-        return marocco, runtime
-        
-    
-    def do_placement(self, pop, coord):
-        if not hasattr(self, '_hicann'):
-            self._hicann = {}
-            
-        self._hicann[coord] = C.HICANNOnWafer(C.Enum(coord))
-        marocco.manual_placement.on_hicann(pop, self._hicann[coord])
-        
-    
-    
-
-    def _set_sthal_params(wafer, gmax, gmax_div):
-        # change low-level parameters before configuring hardware
-        """
-        synaptic strength:
-        gmax: 0 - 1023, strongest: 1023
-        gmax_div: 1 - 15, strongest: 1
-        """
-        assert gmax >= 0 and gmax <= 1023, "gmax has to be in the range [0, 1023]"
-        assert gmax_div >= 1 and gmax_div <= 15, "gmax_div has to be in the range [1, 15]"
-        
-
-        # for all HICANNs in use
-        for hicann in wafer.getAllocatedHicannCoordinates():
-
-            fgs = wafer[hicann].floating_gates
-
-            # set parameters influencing the synaptic strength
-            for block in C.iter_all(C.FGBlockOnHICANN):
-                fgs.setShared(block, HICANN.shared_parameter.V_gmax0, gmax)
-                fgs.setShared(block, HICANN.shared_parameter.V_gmax1, gmax)
-                fgs.setShared(block, HICANN.shared_parameter.V_gmax2, gmax)
-                fgs.setShared(block, HICANN.shared_parameter.V_gmax3, gmax)
-
-            for driver in C.iter_all(C.SynapseDriverOnHICANN):
-                for row in C.iter_all(C.RowOnSynapseDriver):
-                    wafer[hicann].synapses[driver][row].set_gmax_div(
-                        C.left, gmax_div)
-                    wafer[hicann].synapses[driver][row].set_gmax_div(
-                        C.right, gmax_div)
-
-            # don't change values below
-            for ii in xrange(fgs.getNoProgrammingPasses()):
-                cfg = fgs.getFGConfig(C.Enum(ii))
-                cfg.fg_biasn = 0
-                cfg.fg_bias = 0
-                fgs.setFGConfig(C.Enum(ii), cfg)
-
-            for block in C.iter_all(C.FGBlockOnHICANN):
-                fgs.setShared(block, HICANN.shared_parameter.V_dllres, 275)
-                fgs.setShared(block, HICANN.shared_parameter.V_ccas, 800)
-    
-    
     def run(self, duration, gmax=1023, gmax_div=1):
         if self.sim_name == BSS:
             if self._first_run:
-                marocco.skip_mapping = False
-                marocco.backend = PyMarocco.None
+                # self.marocco.skip_mapping = False
+                # self.marocco.backend = PyMarocco.None
 
-                self.sim.reset()
+                # self.sim.reset()
                 self.sim.run(duration)
                 
-                self._set_sthal_params(self.runtime.wafer(), gmax, gmax_div)
+                # self._set_sthal_params(self.runtime.wafer(), gmax, gmax_div)
                 
-                marocco.skip_mapping = True
-                marocco.backend = PyMarocco.Hardware
+                # marocco.skip_mapping = True
+                # marocco.backend = PyMarocco.Hardware
                 
-                # Full configuration during first step
-                marocco.hicann_configurator = PyMarocco.ParallelHICANNv4Configurator
+                # # Full configuration during first step
+                # marocco.hicann_configurator = PyMarocco.ParallelHICANNv4Configurator
                 self._first_run = False
             else:
                 self.sim.run(duration)
         else:
+            if self._first_run:
+                self._first_run = False
             self.sim.run(duration)
     
     def reset(self, skip_marocco_checks=True):
         self.sim.reset()
         if self.sim_name == BSS and not self._first_run:
             # only change digital parameters from now on
-            self._marocco.hicann_configurator = PyMarocco.NoResetNoFGConfigurator
+            self.marocco.hicann_configurator = PyMarocco.NoResetNoFGConfigurator
             # skip checks
             if skip_marocco_checks:
-                marocco.verification = PyMarocco.Skip
-                marocco.checkl1locking = PyMarocco.SkipCheck
+                self.marocco.verification = PyMarocco.Skip
+                self.marocco.checkl1locking = PyMarocco.SkipCheck
     
     def end(self):
         self._sim.end()
@@ -231,7 +164,6 @@ class PyNNAL(object):
 
 
     def get_spikes(self, pop, segment=0):
-        sim = self.sim
         if self._ver() == 7:
             data = np.array(pop.getSpikes())
             ids = np.unique(data[:, 0])
