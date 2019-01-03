@@ -6,6 +6,7 @@ from spikevo.pynn_transforms import PyNNAL
 from spikevo import *
 
 @Pyro4.expose
+# @Pyro4.behavior(instance_mode="percall") #single instance per call
 @Pyro4.behavior(instance_mode="session") #single instance per proxy connection
 class NeuralNetworkServer(object):
     def __init__(self):
@@ -116,7 +117,10 @@ def main():
             {
                 NeuralNetworkServer: "spikevo.pynn_server"
             },
-            ns = True)
+            ns = True, 
+            verbose=True, 
+            # host="mypynnserver"
+        )
 
 if __name__=="__main__":
     main()

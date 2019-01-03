@@ -17,6 +17,7 @@ except:
 
 class PyNNAL(object):
     def __init__(self, simulator):
+        
         self._sim = simulator
         sim_name = simulator.__name__
         if GENN in sim_name:
@@ -71,7 +72,7 @@ class PyNNAL(object):
                 # self.marocco.backend = PyMarocco.None
 
                 # self.sim.reset()
-                self.sim.run(duration)
+                self._sim.run(duration)
                 
                 # self._set_sthal_params(self.runtime.wafer(), gmax, gmax_div)
                 
@@ -82,14 +83,14 @@ class PyNNAL(object):
                 # marocco.hicann_configurator = PyMarocco.ParallelHICANNv4Configurator
                 self._first_run = False
             else:
-                self.sim.run(duration)
+                self._sim.run(duration)
         else:
             if self._first_run:
                 self._first_run = False
-            self.sim.run(duration)
+            self._sim.run(duration)
     
     def reset(self, skip_marocco_checks=True):
-        self.sim.reset()
+        self._sim.reset()
         if self.sim_name == BSS and not self._first_run:
             # only change digital parameters from now on
             self.marocco.hicann_configurator = PyMarocco.NoResetNoFGConfigurator
