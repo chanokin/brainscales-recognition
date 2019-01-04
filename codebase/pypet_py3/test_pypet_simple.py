@@ -1,14 +1,14 @@
+from __future__ import (print_function,
+                        unicode_literals,
+                        division)
+                        
 from pypet import Environment
 import Pyro4
 import Pyro4.util
 
+SIM_NAME = 'genn'
 
 def run_sim(trajectory):
-    print('\n\n')
-    print('trajectory.par.synapse.weight = {}'.format(
-        trajectory.par.synapse.weight))
-    print('\n\n')
-    
     e_rev = 50
     neuron_parameters = {
     'cm': 0.2,
@@ -22,7 +22,7 @@ def run_sim(trajectory):
     'tau_syn_E': 5.,
     'tau_syn_I': 5.,
     }
-    
+
     description = {
         'populations': {
             'source': {
@@ -53,22 +53,45 @@ def run_sim(trajectory):
     
     pynn_server = Pyro4.Proxy("PYRONAME:spikevo.pynn_server")
 
-    pynn_server.set_net('nest', description)
+    strw = '{}'.format(trajectory.par.synapse.weight)
+    strw = strw.replace('.', 'p')
+
+    pynn_server.set_net(SIM_NAME, description, 
+        per_sim_params={'model_name': 'pyro_pynn_{}'.format(strw)})
+        
+    print('\n\n---------------------------------------\n')
+    print('after set_net ({})'.format(strw))
+    print('\n---------------------------------------\n')
+
     pynn_server.run(trajectory.simulation.duration)
+    print('\n\n---------------------------------------\n')
+    print('after run ({})'.format(strw))
+    print('\n---------------------------------------\n')
+    
     recs = pynn_server.get_records()
+    print('\n\n---------------------------------------\n')
+    print('after get_records ({})'.format(strw))
+    print('\n---------------------------------------\n')
+    
     pynn_server.end()
+    print('\n\n---------------------------------------\n')
+    print('after end ({})'.format(strw))
+    print('\n---------------------------------------\n')
     
     spike_count = len(recs['destination']['spikes'][0])
-    
+
     trajectory.f_add_result('activity.$', n_spikes=spike_count)
 
-    return len(spike_times)
+    print('\n\n---------------------------------------\n')
+    print('after add result ({})'.format(strw))
+    print('\n---------------------------------------\n')
+    return spike_count
 
 
 
 
 def post_proc(traj, result_list):
-    w_range = traj.par.synapse.f_get('weight')
+    w_range = traj.par.synapse.f_get('synapse.weight')
     for result_tuple in result_list:
         run_idx = result_tuple[0]
         n_spikes = result_tuple[1]
@@ -84,16 +107,22 @@ def post_proc(traj, result_list):
 
 def main():
     ### setup an experimental environment
+    multiproc = False if SIM_NAME == 'genn' else True
+        
     env = Environment(trajectory='WeightToSpike',
                       comment='Experiment to see which is the minimum weight'
                             'is required by a neuron to spike',
                       add_time=False, # We don't want to add the current time to the name,
                       log_config='DEFAULT',
-                      multiproc=True,
+                      multiproc=multiproc,
                       ncores=2, # Author's laptop had 2 cores XP
                       filename='./hdf5/', # We only pass a folder here, so the name is chosen
                       overwrite_file=True,
-                      # automatically to be the same as the Trajectory
+                      ### from the Brian2 example
+                      continuable=False,
+                      lazy_debug=False,
+                      # use_pool=False, # We cannot use a pool, our network cannot be pickled
+                      # wrap_mode='QUEUE',
                       )
 
 
@@ -108,7 +137,7 @@ def main():
     ### exploration dictionary
     ### describe parameters with certain rules (e.g. cartesian product of params)
     explore_dict = {
-        'synapse.weight': [0.001, 0.1],
+        'synapse.weight': [0.001, 0.1], #values to explore
     }
     
     traj.f_explore(explore_dict)

@@ -1,3 +1,6 @@
+from __future__ import (print_function,
+                        unicode_literals,
+                        division)
 import numpy as np
 import numbers
 from . import *
@@ -55,14 +58,21 @@ class PyNNAL(object):
             marocco.backend = PyMarocco.Hardware
             marocco.calib_path = per_sim_params.get('calib_path',
                             "/wang/data/calibration/brainscales/WIP-2018-09-18")
+            
             marocco.defects.path = marocco.calib_path
             marocco.verification = PyMarocco.Skip
             marocco.checkl1locking = PyMarocco.SkipCheck
             
+            per_sim_params.pop('calib_path', None)
+            
             setup_args['marocco'] = marocco
             self.marocco = marocco
         
+        for k in per_sim_params:
+            setup_args[k] = per_sim_params[k]
+
         self._setup_args = setup_args
+        
         self._sim.setup(**setup_args)
 
     def run(self, duration, gmax=1023, gmax_div=1):
@@ -171,8 +181,13 @@ class PyNNAL(object):
             return [data[np.where(data[:, 0] == nid)][:, 1].tolist() \
                         if nid in ids else [] for nid in range(pop.size)]
         else:
-            data = pop.get_data().segments[segment]
-            return data.spiketrains
+            spiketrains = pop.get_data().segments[0].spiketrains
+            spikes = [[] for _ in spiketrains]
+            for train in spiketrains:
+                ### NOTE: had to remove units because pyro or pypet don't like it!
+                spikes[int(train.annotations['source_index'])][:] = \
+                    [float(t) for t in train] 
+            return spikes
 
     def get_weights(self, proj, format='array'):
         return np.array(proj.getWeights(format=format))

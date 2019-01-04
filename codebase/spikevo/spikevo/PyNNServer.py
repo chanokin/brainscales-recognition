@@ -27,7 +27,8 @@ class NeuralNetworkServer(object):
         timestep: Simulation timestep (ms)
         min_delay: Minimum delay in synaptic connections between populations (ms)
         per_sim_params: Extra parameters needed for specific simulator (e.g. 
-            wafer id for BrainScaleS, max_neurons_per_core in SpiNNaker)
+            wafer id for BrainScaleS, max_neurons_per_core for SpiNNaker,
+            model_name for GeNN)
         """
         self.sim = self.select_simulator(simulator_name) 
         self.pynnx = PyNNAL(self.sim)
@@ -100,17 +101,36 @@ class NeuralNetworkServer(object):
         for pop_label in self.record_ids:
             recs[pop_label] = {}
             for rec in self.record_ids[pop_label]:
+                print("\n\n***********\n")
+                print("in PyNNServer.get_records ({}, {})".format(pop_label, rec))
+                print("\n***********\n")
                 recs[pop_label][rec] = self.pynnx.get_record( 
                                             self.populations[pop_label], rec)
-
+        
+        print("\n\n+++++\n")
+        print("exiting PyNNServer.get_records")
+        for p in recs:
+            for rt in recs[p]:
+                for r in recs[p][rt]:
+                    print("{}, {}, {} =: {}, {}".\
+                            format(p, rt, r, type(p), type(rt), type(r)))
+                
+        print("\n+++++\n")                
         return recs
     
     def get_weights(self, weights_to_get):
         _ws = {}
         return _ws
 
+
+    def __del__(self):
+        self.end()
+
     def end(self):
-        self.pynnx.end()
+        try:
+            self.pynnx.end()
+        except:
+            pass
 
 def main():
     Pyro4.Daemon.serveSimple(
