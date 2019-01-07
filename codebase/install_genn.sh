@@ -19,10 +19,15 @@ if [ $HAS_CUDA -eq 1 ]
 then
     make -f GNUMakefileLibGeNN LIBGENN_PATH=$GENN_DIR/pygenn/genn_wrapper/
     make -f GNUMakefileLibGeNN DYNAMIC=True LIBGENN_PATH=$GENN_DIR/pygenn/genn_wrapper/
-else
-    make -f GNUMakefileLibGeNN LIBGENN_PATH=$GENN_DIR/pygenn/genn_wrapper/ CPU_ONLY=1
-    make -f GNUMakefileLibGeNN DYNAMIC=True LIBGENN_PATH=$GENN_DIR/pygenn/genn_wrapper/ CPU_ONLY=1
+    make -f GNUMakefileLibGeNN DYNAMIC=True MPI_ENABLE=True LIBGENN_PATH=$GENN_DIR/pygenn/genn_wrapper/
+    make -f GNUMakefileLibGeNN MPI_ENABLE=True LIBGENN_PATH=$GENN_DIR/pygenn/genn_wrapper/
 fi
+
+make -f GNUMakefileLibGeNN CPU_ONLY=True LIBGENN_PATH=$GENN_DIR/pygenn/genn_wrapper/ 
+make -f GNUMakefileLibGeNN CPU_ONLY=True DYNAMIC=True LIBGENN_PATH=$GENN_DIR/pygenn/genn_wrapper/ 
+make -f GNUMakefileLibGeNN CPU_ONLY=True MPI_ENABLE=True LIBGENN_PATH=$GENN_DIR/pygenn/genn_wrapper/
+make -f GNUMakefileLibGeNN CPU_ONLY=True DYNAMIC=True MPI_ENABLE=True LIBGENN_PATH=$GENN_DIR/pygenn/genn_wrapper/
+
 
 cd ..
 python setup.py develop

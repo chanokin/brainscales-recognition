@@ -9,20 +9,6 @@ N_NEURONS = 50
 w = 0.01
 syn_delay = 1.
 
-# default_parameters = {
-    # 'tau_refrac':  0.1,
-    # 'cm':          1.0,
-    # 'tau_syn_E':   5.0,
-    # 'v_rest':     -65.0,
-    # 'tau_syn_I':   5.0,
-    # 'tau_m':       20.0,
-    # 'e_rev_E':     0.0,
-    # 'i_offset':    0.0,
-    # 'e_rev_I':    -70.0,
-    # 'v_thresh':   -50.0,
-    # 'v_reset':    -65.0,
-# }
-
 neuron_parameters = {
     'v_thresh':   -35.0, 
     'tau_m':       20.,
@@ -38,7 +24,7 @@ neuron_parameters = {
     'e_rev_I':    -100.,
 } 
 
-pynn.setup(timestep=1.0)
+pynn.setup(timestep=1.0, use_cpu=True)
 
 neurons = pynn.Population(N_NEURONS, 
             pynn.IF_cond_exp(**neuron_parameters),
@@ -54,16 +40,20 @@ proj = pynn.Projection(inputs, neurons,
         pynn.OneToOneConnector(), syn)
 
 pynn.run(1000.0)
-data = neurons.get_data().segments[0]
-out_spikes = np.array(data.spiketrains)
 
-pynn.end()
+data = neurons.get_data()
 
-plt.figure()
-for nid, times in enumerate(out_spikes):
-    plt.plot(times, np.ones_like(times)*nid, '.b', markersize=1)
-plt.savefig("output.pdf")
-plt.show()
+if len(data.segments):
+    data = data.segments[0]
+    out_spikes = np.array(data.spiketrains)
+
+    pynn.end()
+
+    plt.figure()
+    for nid, times in enumerate(out_spikes):
+        plt.plot(times, np.ones_like(times)*nid, '.b', markersize=1)
+    plt.savefig("output.pdf")
+    plt.show()
 
 
 

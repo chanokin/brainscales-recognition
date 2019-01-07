@@ -78,8 +78,12 @@ def eval_one_min(trajectory):
 
     strw = '{}'.format(weight).replace('.', 'p')
 
-    pynn_server.set_net(SIM_NAME, description, 
-        per_sim_params={'model_name': 'pyro_pynn_{}'.format(strw)})
+    per_sim_params = {}
+    if SIM_NAME == 'genn':
+        per_sim_params['model_name'] = 'pyro_pynn_{}'.format(strw)
+        per_sim_params['use_cpu'] = True
+    
+    pynn_server.set_net(SIM_NAME, description, per_sim_params=per_sim_params)
         
     print('\n\n---------------------------------------\n')
     print('after set_net ({})'.format(strw))
@@ -153,7 +157,7 @@ def main():
     traj.f_add_parameter('popsize', 5, comment='Population size')
     traj.f_add_parameter('CXPB', 0.5, comment='Crossover term')
     traj.f_add_parameter('MUTPB', 0.2, comment='Mutation probability')
-    traj.f_add_parameter('NGEN', 5, comment='Number of generations')
+    traj.f_add_parameter('NGEN', 2, comment='Number of generations')
 
     traj.f_add_parameter('generation', 0, comment='Current generation')
     traj.f_add_parameter('ind_idx', 0, comment='Index of individual')

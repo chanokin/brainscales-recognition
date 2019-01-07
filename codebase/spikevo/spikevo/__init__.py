@@ -18,6 +18,7 @@ CHAN2TXT = {ON: 'GREEN', OFF: 'RED'}
 RATE = 'rate'
 ON_OFF = 'on-off'
 IMAGE_ENCODINGS = [RATE, ON_OFF]
+MAX_SUBPOP_SIZE = 150
 
 def backend_setup(backend):
     if backend not in supported_backends:
@@ -44,3 +45,6 @@ def str2bool(v):
     else:
         raise argparse.ArgumentTypeError('Boolean value expected.')
 
+
+def calc_n_part(size, part_size):
+    return size//part_size + int(size % part_size > 0)
