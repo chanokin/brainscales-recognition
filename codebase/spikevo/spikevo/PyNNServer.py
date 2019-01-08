@@ -1,6 +1,8 @@
 from __future__ import (print_function,
                         unicode_literals,
                         division)
+from builtins import str, open, range, dict
+ 
 import Pyro4
 from spikevo.pynn_transforms import PyNNAL
 from spikevo import *

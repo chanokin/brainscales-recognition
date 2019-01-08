@@ -1,6 +1,8 @@
 from __future__ import (print_function,
                         unicode_literals,
                         division)
+from builtins import str, open, range, dict
+
 import numpy as np
 import numbers
 from . import *
@@ -29,7 +31,7 @@ class SplitPopulation(object):
     """
     ### This seems like reinventing the wheel and I shouldn't have to!
     def __init__(self, pynnal, size, cell_class, params, label=None, shape=None,
-        max_sub_size=MAX_SUBPOP_SIZE):
+        max_sub_size=BSS_MAX_SUBPOP_SIZE):
         """
             pynnal: PyNN Abstraction Layer instance, we use it to avoid re-coding
                 different cases for different PyNN versions while creating
@@ -80,7 +82,7 @@ class SplitPopulation(object):
                 })
 
         ### TODO: deal with 2D, 3D!
-        self.subpops = pops
+        self._populations = pops
 
 
 
@@ -102,7 +104,7 @@ class SplitProjection(object):
         self.stdp = stdp
         self.conn_params = conn_params
         if label is None:
-            self.label = "SplitProjection from {} to {}".format(
+            self.label = 'SplitProjection from {} to {}'.format(
                             self.source.label, self.destination.label)
         else:
             self.label = label
@@ -110,32 +112,99 @@ class SplitProjection(object):
         partition()
 
     def partition(self):
-        pynnx = self.pynnal
         src = self.source
         dst = self.destination
+        conn, params = self.conn_class, self.conn_params
+        w, d, tgt = self.weights, self.delays, self.target
+        stdp = self.stdp
         
         if isinstance(src, SplitPopulation):
-            for src_part in src:
-                pre_ids, pre = part['ids'], part['pop']
-                
-                if isinstance(dst, SplitPopulation):
-                    for dst_part in src:
-                        post_ids, post = part['ids'], part['pop']
-                else:
+            pres = src._populations
+        else:
+            pres = [{'ids': np.arange(src.size), 'pop': src}]
+        
+        if isinstance(dst, SplitPopulation):
+            posts = dst._populations
+        else:
+            posts = [{'ids': np.arange(dst.size), 'pop': dst}]
+        
+        projs = {}
+        for src_part in src:
+            pre_ids, pre = src_part['ids'], src_part['pop']
+            src_prjs = projs.get(pre.label, dict)
+            
+            for dst_part in dst:
+                post_ids, post = dst_part['ids'], dst_part['pop']
+                lbl = '{} sub {} - {}'.format(self.label, pre.label, post.label)
                     
+                proj = self._proj(src_part, dst_part, conn, w, d, 
+                        tgt, params, lbl, stdp)
+                if prjs is None:
+                    continue
+                
+                src_prjs[post.label] = {'ids': {'pre': pre_ids, 'post': post_ids},
+                                        'proj': prjs}
+
+            projs[pre.label] = src_prjs
+
+        self._projections = projs
+
+
     def _proj(self, pre, post, conn, w, d, tgt, params, lbl, stdp=None):
         cname = conn if type(conn) == type(u'') else conn.__name__
-        if cname=='FromListConnector':
+        if cname.startswith('FromList'):
             from_list_connector(pre, post, conn, w, d, tgt, params, lbl, stdp=None)
-        else:
-            stats_connector(pre, post, conn, w, d, tgt, params, lbl, stdp=None)
+        elif cname.startswith('OneToOne'):
+            one_to_one_connector(pre, post, conn, w, d, tgt, params, lbl, stdp=None)
+        elif cname.startswith('AllToAll'):
+            all_to_all_connector(pre, post, conn, w, d, tgt, params, lbl, stdp=None)
+
 
     def stats_connector(self, pre, post, conn, w, d, tgt, params, lbl, stdp=None):
-        pass
+        pynnal = self.pynnal
+
+
+    def one_to_one_connector(self, pre, post, conn, w, d, tgt, params, lbl, stdp=None):
+        pynnal = self.pynnal
+        if pre['ids'][0] != post['ids'][0] or pre['ids'][-1] != post['ids'][-1]:
+            return None
+
+        return pynnal.Proj(pre['pop'], post['pop'], conn, w, d, 
+                target=tgt, stdp=stdp, label=lbl, conn_params=params)
+
+
+    def all_to_all_connector(self, pre, post, conn, w, d, tgt, params, lbl, stdp=None):
+        pynnal = self.pynnal
+        return pynnal.Proj(pre['pop'], post['pop'], conn, w, d, 
+                target=tgt, stdp=stdp, label=lbl, conn_params=params)
+
 
     def from_list_connector(self, pre, post, conn, w, d, tgt, params, lbl, stdp=None):
-        pass
+        pynnal = self.pynnal
+        clist = params['conn_list']
+        if isinstance(clist, list):
+            clist = np.array(clist)
 
+        whr = np.where(np.intersect1d(
+                np.intersect1d(clist[:, 0], pre['ids'])[0],
+                np.intersect1d(clist[:, 1], post['ids'])[0]))[0]
+        cp = {'conn_list': clist[whr,:]}
+
+        return pynnal.Proj(pre['pop'], post['pop'], conn, w[whr], d[whr], 
+                target=tgt, stdp=stdp, label=lbl, conn_params=cp)
+
+    def getWeights(self, format='array'):
+        pynnal = self.pynnal
+        mtx = np.ones((self.source.size, self.destination.size)) * np.inf
+        for row in proj:
+            for part in row:
+                pre_ids = part['ids']['pre']
+                r0, rN = pre_ids[0], pre_ids[-1]
+                post_ids = part['ids']['post']
+                c0, cN = post_ids[0], post_ids[-1]
+                weights = pynnal.getWeights(part['proj'], format=format)
+                mtx[r0:rN, c0:cN] = weights
+        return mtx
 
 
 class PyNNAL(object):
@@ -148,11 +217,13 @@ class PyNNAL(object):
         
         self._sim = simulator
         sim_name = simulator.__name__
+        self._max_subpop_size = np.inf
         if GENN in sim_name:
             self._sim_name = GENN
         elif NEST in sim_name:
             self._sim_name = NEST
         elif BSS_BACK in sim_name:
+            self._max_subpop_size = BSS_MAX_SUBPOP_SIZE
             self._sim_name = BSS
         else:
             raise Exception("Not supported simulator ({})".format(sim_name))
@@ -243,17 +314,23 @@ class PyNNAL(object):
     def _ver(self):
         return (9 if self._is_v9() else 7)
 
-    def get_obj(self, obj_name):
+    def _get_obj(self, obj_name):
         return getattr(self._sim, obj_name)
     
     def Pop(self, size, cell_class, params, label=None, shape=None,
-        max_sub_size=MAX_SUBPOP_SIZE):
+        max_sub_size=None):
+        if max_sub_size is None:
+            max_sub_size = self._max_subpop_size
         if type(cell_class) == type(u''): #convert from text representation to object
-            cell_class = self.get_obj(cell_class)
-
+            cell_class = self._get_obj(cell_class)
+            # cname = cell_class
+        # else:
+            # cname = cell_class.__name__
+        # is_source_pop = cname.startswith('SpikeSource')
+        
         sim = self.sim
         
-        if size <= max_sub_size:
+        if size <= max_sub_size:# or is_source_pop:
             if self._ver() == 7:
                 return sim.Population(size, cell_class, params, label=label)
             else:
@@ -277,7 +354,7 @@ class PyNNAL(object):
              target='excitatory', stdp=None, label=None, conn_params={})
             
         if type(conn_class) == type(u''): #convert from text representation to object
-            conn_class = self.get_obj(conn_class)
+            conn_class = self._get_obj(conn_class)
 
         sim = self.sim
             
@@ -317,21 +394,31 @@ class PyNNAL(object):
 
 
     def get_spikes(self, pop, segment=0):
-        if self._ver() == 7:
-            data = np.array(pop.getSpikes())
-            ids = np.unique(data[:, 0])
-            return [data[np.where(data[:, 0] == nid)][:, 1].tolist() \
-                        if nid in ids else [] for nid in range(pop.size)]
+        spikes = []
+        if isinstance(pop, SplitPopulation):
+            ### TODO: deal with 2D/3D pops
+            for part in pop._populations:
+                spikes += self.get_spikes(part['pop'])
         else:
-            spiketrains = pop.get_data().segments[0].spiketrains
-            spikes = [[] for _ in spiketrains]
-            for train in spiketrains:
-                ### NOTE: had to remove units because pyro or pypet don't like it!
-                spikes[int(train.annotations['source_index'])][:] = \
-                    [float(t) for t in train] 
-            return spikes
+            if self._ver() == 7:
+                data = np.array(pop.getSpikes())
+                ids = np.unique(data[:, 0])
+                spikes[:] = [data[np.where(data[:, 0] == nid)][:, 1].tolist() \
+                                if nid in ids else [] for nid in range(pop.size)]
+            else:
+                spiketrains = pop.get_data().segments[0].spiketrains
+                spikes[:] = [[] for _ in spiketrains]
+                for train in spiketrains:
+                    ### NOTE: had to remove units because pyro or pypet don't like it!
+                    spikes[int(train.annotations['source_index'])][:] = \
+                        [float(t) for t in train] 
+        
+        return spikes
+
 
     def get_weights(self, proj, format='array'):
+        ### NOTE: screw the non-array representation!!! Who thought that was a good idea?
+        format = 'array'
         return np.array(proj.getWeights(format=format))
 
 

@@ -1,6 +1,8 @@
 from __future__ import (print_function,
                         unicode_literals,
                         division)
+from builtins import str, open, range, dict
+
 import sys
 import os
 import argparse
@@ -18,7 +20,7 @@ CHAN2TXT = {ON: 'GREEN', OFF: 'RED'}
 RATE = 'rate'
 ON_OFF = 'on-off'
 IMAGE_ENCODINGS = [RATE, ON_OFF]
-MAX_SUBPOP_SIZE = 150
+BSS_MAX_SUBPOP_SIZE = 175
 
 def backend_setup(backend):
     if backend not in supported_backends:

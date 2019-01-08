@@ -1,3 +1,8 @@
+from __future__ import (print_function,
+                        unicode_literals,
+                        division)
+from builtins import str, open, range, dict
+
 import argparse
 
 def get_args():
