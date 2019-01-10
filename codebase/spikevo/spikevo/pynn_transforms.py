@@ -1,7 +1,7 @@
 from __future__ import (print_function,
                         unicode_literals,
                         division)
-from builtins import str, open, range, dict
+from future.builtins import str, open, range, dict
 
 import numpy as np
 import numbers
@@ -214,7 +214,9 @@ class PyNNAL(object):
     Required mainly due to different PyNN implementations lagging or moving ahead.
     """
     def __init__(self, simulator):
-        
+        if isinstance(simulator, str) or type(simulator) == type(u''):
+            simulator = backend_setup(simulator)
+
         self._sim = simulator
         sim_name = simulator.__name__
         self._max_subpop_size = np.inf
@@ -319,6 +321,7 @@ class PyNNAL(object):
     
     def Pop(self, size, cell_class, params, label=None, shape=None,
         max_sub_size=None):
+
         if max_sub_size is None:
             max_sub_size = self._max_subpop_size
         if type(cell_class) == type(u''): #convert from text representation to object
@@ -341,6 +344,10 @@ class PyNNAL(object):
             return SubPopulation(self, size, cell_class, params, label, shape, 
                     max_sub_size)
 
+    def _get_stdp_dep(self, config):
+        _dep = self._get_obj(config['name'])
+        return _dep(**config['params'])
+
 
 
     def Proj(self, source_pop, dest_pop, conn_class, weights, delays, 
@@ -351,7 +358,7 @@ class PyNNAL(object):
             ### first argument is this PYNNAL instance, needed to loop back here!
             ### a bit spaghetti but it's less code :p
             return SubProjection(self, source_pop, dest_pop, conn_class, weights, delays, 
-             target='excitatory', stdp=None, label=None, conn_params={})
+             target=target, stdp=None, label=None, conn_params={})
             
         if type(conn_class) == type(u''): #convert from text representation to object
             conn_class = self._get_obj(conn_class)
@@ -369,10 +376,21 @@ class PyNNAL(object):
             conn = conn_class(**tmp)
             
             if stdp is not None:
+                ### Compatibility between versions - change parameters to the other description
+                if 'A_plus' in stdp['timing_dependence']['params']:
+                    stdp['weight_dependence']['params']['A_plus'] = \
+                        stdp['timing_dependence']['params']['A_plus']
+                    del stdp['timing_dependence']['params']['A_plus']
+
+                if 'A_minus' in stdp['timing_dependence']['params']:
+                    stdp['weight_dependence']['params']['A_minus'] = \
+                        stdp['timing_dependence']['params']['A_minus']
+                    del stdp['timing_dependence']['params']['A_minus']
+
                 syn_dyn = sim.SynapseDynamics(
                             slow=sim.STDPMechanism(
-                                timing_dependence=stdp['timing_dependence'],
-                                weight_dependence=stdp['weight_dependence'])
+                                timing_dependence=self._get_stdp_dep(stdp['timing_dependence']),
+                                weight_dependence=self._get_stdp_dep(stdp['weight_dependence']))
                             )
             else:
                 syn_dyn = None
@@ -382,15 +400,26 @@ class PyNNAL(object):
             
         else:
             if stdp is not None:
+                ### Compatibility between versions - change parameters to the other description
+                if 'A_plus' in stdp['weight_dependence']['params']:
+                    stdp['timing_dependence']['params']['A_plus'] = \
+                        stdp['weight_dependence']['params']['A_plus']
+                    del stdp['weight_dependence']['params']['A_plus']
+
+                if 'A_minus' in stdp['weight_dependence']['params']:
+                    stdp['timing_dependence']['params']['A_minus'] = \
+                        stdp['weight_dependence']['params']['A_minus']
+                    del stdp['weight_dependence']['params']['A_minus']
+
                 synapse = sim.STDPMechanism(
-                    timing_dependence=stdp['timing_dependence'],
-                    weight_dependence=stdp['weight_dependence'],
+                    timing_dependence=self._get_stdp_dep(stdp['timing_dependence']),
+                    weight_dependence=self._get_stdp_dep(stdp['weight_dependence']),
                     weight=weights, delay=delays)
             else:
                 synapse = sim.StaticSynapse(weight=weights, delay=delays)
 
             return sim.Projection(source_pop, dest_pop, conn_class(**conn_params), 
-                    synapse, receptor_type=target, label=label)
+                    synapse_type=synapse, receptor_type=target, label=label)
 
 
     def get_spikes(self, pop, segment=0):
@@ -452,6 +481,6 @@ class PyNNAL(object):
             record = getattr(pop, 'get_'+recording) #indirectly get method
             return record() #execute method :ugly-a-f:
         else:
-            pop.get_data().segments[0].filter(name=recording)
+            return pop.get_data().segments[0].filter(name=recording)
         
 

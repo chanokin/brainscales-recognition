@@ -1,8 +1,9 @@
 from __future__ import (print_function,
                         unicode_literals,
                         division)
-from builtins import str, open, range, dict
+from future.builtins import str, open, range, dict
 
+from spikevo import *
 import argparse
 
 def get_args():
@@ -18,6 +19,11 @@ def get_args():
         help='Number of decision neurons (ouput [third] layer)' )
     parser.add_argument('gScale', type=float,
         help='Global rescaling factor for synaptic strength (weights)' )
+    parser.add_argument('w2s', type=float,
+        help='Synaptic strength (weights) sufficient to make a neuron spike' )
+
+    parser.add_argument('--backend', '-b', type=str, default=GENN,
+        help='PyNN simulator backend')
     
     parser.add_argument('--probAL', type=float, default=0.2,
         help='Probability of active cells in the Antennae Lobe')
@@ -25,11 +31,24 @@ def get_args():
         help='Number of patterns for the Antennae Lobe')
     parser.add_argument('--nSamplesAL', type=int, default=100,
         help='Number of samples from the patterns of the Antennae Lobe')
+    parser.add_argument('--randomizeSamplesAL', type=str2bool, default='True',
+        help='Randomize the order of samples from the patterns of the Antennae Lobe')
     parser.add_argument('--probNoiseSamplesAL', type=float, default=0.1,
         help='Probability of neurons in the Antennae Lobe flipping state')
-    parser.add_argument('--probAL2KC', type=float, default=0.1,
-        help='Probability of connectivity between the Antennae Lobe and the ')
+
+    parser.add_argument('--probAL2KC', type=float, default=0.15,
+        help='Probability of connectivity between the Antennae Lobe and the Kenyon cells')
+    parser.add_argument('--probAL2LH', type=float, default=0.5,
+        help='Probability of connectivity between the Antennae Lobe and the Lateral Horn')
+    parser.add_argument('--probKC2DN', type=float, default=0.2,
+        help='Probability of active weights in the connectivity between '
+        'the Kenyon cells and the Decision neurons')
+    parser.add_argument('--inactiveScale', type=float, default=0.1,
+        help='Scaling for the inactive weights in the connectivity between '
+        'the Kenyon cells and the Decision neurons')
     
-    
+    parser.add_argument('--renderSpikes', type=str2bool, default='False',
+        help='Whether to render spikes from each population. This may slow down getting done with the simulation.')
+
 
     return parser.parse_args()

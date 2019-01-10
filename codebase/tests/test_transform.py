@@ -1,4 +1,7 @@
-from __future__ import print_function
+from __future__ import (print_function,
+                        unicode_literals,
+                        division)
+from future.builtins import *
 import matplotlib 
 #matplotlib.use('Agg')
 import matplotlib.pyplot as plt

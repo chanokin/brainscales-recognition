@@ -1,8 +1,9 @@
 from __future__ import (print_function,
                         unicode_literals,
                         division)
-from builtins import str, open, range, dict
+from future.builtins import str, open, range, dict
 
+import numpy as np
 import sys
 import os
 import argparse
@@ -23,8 +24,8 @@ IMAGE_ENCODINGS = [RATE, ON_OFF]
 BSS_MAX_SUBPOP_SIZE = 175
 
 def backend_setup(backend):
-    if backend not in supported_backends:
-        raise Exception("Backend not supported")
+    if backend.lower() not in supported_backends:
+        raise Exception('Backend not supported')
 
     if backend == GENN:
         import pynn_genn as pynn_local
@@ -50,3 +51,37 @@ def str2bool(v):
 
 def calc_n_part(size, part_size):
     return size//part_size + int(size % part_size > 0)
+
+
+def render_spikes(spikes, title, filename, markersize=1, color='blue'):
+    import matplotlib
+    try:
+        matplotlib.use('Agg')
+    except:
+        pass
+    import matplotlib.pyplot as plt
+
+    n_neurons = len(spikes)
+    sys.stdout.write('\n\nRendering spikes: {}\n\n'.format(title))
+    sys.stdout.flush()
+
+    fig = plt.figure()
+    ax = plt.subplot(1, 1, 1)
+    ax.set_title(title)
+    total = 0
+    for i, times in enumerate(spikes):
+
+        sys.stdout.write('\rNeuron\t{:05d}/{:05d}\t{:06d}'.format(i+1, n_neurons, total))
+        sys.stdout.flush()
+
+        plt.plot(times, np.ones_like(times) * i, '.', color=color, markersize=markersize, markeredgewidth=0)
+        total += len(times)
+
+    ax.set_ylabel('Neuron id')
+    ax.set_xlabel('Time [ms]')
+
+    sys.stdout.write('\nDone!\t{}\n\n'.format(title))
+    sys.stdout.flush()
+
+    plt.savefig(filename)
+    plt.close(fig)

@@ -1,92 +1,258 @@
 from __future__ import (print_function,
                         unicode_literals,
                         division)
-from builtins import str, open, range, dict
-
+from future.builtins import str, open, range, dict
 
 import numpy as np
 import matplotlib.pyplot as plt
-
+import sys
 from spikevo import *
 from spikevo.pynn_transforms import PyNNAL
 import argparse
 from pprint import pprint
 from args_setup import get_args
+from input_utils import *
+
+
+def output_connection_list(kenyon_size, decision_size, prob_active,
+                           active_weight, inactive_scaling, seed=1):
+    matrix = np.ones((kenyon_size * decision_size, 4))
+    matrix[:, 0] = np.tile(np.arange(kenyon_size), decision_size)
+    matrix[:, 1] = np.tile(np.arange(decision_size), kenyon_size)
+
+    np.random.seed(seed)
+
+    inactive_weight = active_weight * inactive_scaling
+    matrix[:, 2] = np.random.normal(inactive_weight, inactive_weight * 0.2,
+                                    size=(kenyon_size * decision_size))
+
+    dice = np.random.uniform(0., 1., size=(kenyon_size*decision_size))
+    active = np.where(dice <= prob_active)
+    matrix[active, 2] = np.random.normal(active_weight, active_weight * 0.2,
+                                         size=active[0].shape)
+
+    np.random.seed()
+
+    return matrix
+
+def args_to_str(arguments):
+    d = vars(arguments)
+    arglist = []
+    for arg in d:
+        v = str(d[arg])
+        if arg.startswith('render'):
+            continue
+        v = v.replace('.', 'p')
+        arglist.append('{}={}'.format(arg, v))
+
+    return '_'.join(arglist)
 
 args = get_args()
 pprint(args)
 
-backend = GENN
+backend = args.backend
 
-#heidelberg's brainscales seems to like these params
-e_rev = 50
-neuron_parameters = {
-    'cm': 0.2,
-    'v_reset': -70.,
-    'v_rest': -50.,
-    'v_thresh': -25.,
-    'e_rev_I': -e_rev,
-    'e_rev_E': e_rev,
-    'tau_m': 10.,
-    'tau_refrac': 0.1,
-    'tau_syn_E': 5.,
-    'tau_syn_I': 5.,
+# heidelberg's brainscales seems to like these params
+e_rev = 92 #mV
+base_params = {
+    'cm': 0.25, #nF
+    'v_reset': -70., #mV
+    'v_rest': -65., #mV
+    'v_thresh': -20., #mV
+    'e_rev_I': -e_rev, #mV
+    'e_rev_E': 0.,#e_rev, #mV
+    'tau_m': 10., #ms
+    'tau_refrac': 2.0, #ms
 }
 
+kenyon_parameters = base_params.copy()
+kenyon_parameters['tau_syn_E'] = 1.0#ms
+kenyon_parameters['tau_syn_I'] = 1.5#ms
 
-def generate_input_vectors(num_vectors, dimension, on_probability, seed=1):
-    np.random.seed(seed)
-    vecs = (np.random.uniform(0., 1., (num_vectors, dimension)) <= on_probability).astype('int')
-    np.random.seed()
-    return vecs
+horn_parameters = base_params.copy()
+horn_parameters['tau_syn_E'] = 1.0#ms
 
-def generate_samples(input_vectors, num_samples, prob_noise, seed=1):
-    np.random.seed(seed)
-    
-    samples = None
-    for i in range(input_vecs.shape[0]):
-        samp = np.tile(input_vecs[i, :], (num_samples, 1)).astype('int')
-        dice = np.random.uniform(0., 1., samp.shape)
-        whr = np.where(dice < prob_noise)
-        samp[whr] = 1 - samp[whr]
-        if samples is None:
-            samples = samp
-        else:
-            samples = np.append(samples, samp, axis=0)
+decision_parameters = base_params.copy()
+decision_parameters['tau_syn_E'] = 5.0 #ms
+decision_parameters['tau_syn_I'] = 2.5 #ms
 
-    np.random.seed()
-    return samples
+neuron_params = {
+    'base': base_params, 'kenyon': kenyon_parameters,
+    'horn': horn_parameters, 'decision': decision_parameters,
+}
 
-def samples_to_spike_times(samples, sample_dt, start_dt, max_rand_dt, seed=1):
-    np.random.seed(seed)
-    t = 0
-    spike_times = [[] for _ in range(samples.shape[-1])]
-    rand_idx = np.random.choice(np.arange(samples.shape[0]), size=samples.shape[0],
-                replace=False)
-    rand_idx = np.arange(samples.shape[0])
-    for idx in rand_idx:
-        samp = samples[idx]
-        active = np.where(samp == 1.)[0]
-        ts = t + start_dt + np.random.randint(-max_rand_dt, max_rand_dt+1, size=active.size) 
-        for time_id, neuron_id in enumerate(active):
-            spike_times[neuron_id].append(ts[time_id])
+W2S = args.w2s
 
-        t += sample_dt
-    np.random.seed()
-    return spike_times
+sys.stdout.write('Creating input patterns\n')
+sys.stdout.flush()
 
-# input_vecs = generate_input_vectors(args.nPatternsAL, args.nAL, args.probAL)
-input_vecs = generate_input_vectors(10, 100, 0.1)
-pprint(input_vecs)
 
-samples = generate_samples(input_vecs, 100, 0.01)
-pprint(samples)
+input_vecs = generate_input_vectors(args.nPatternsAL, args.nAL, args.probAL)
+# input_vecs = generate_input_vectors(10, 100, 0.1)
+# pprint(input_vecs)
 
-sample_dt, start_dt, max_rand_dt = 50, 5, 2
-spike_times = samples_to_spike_times(samples, sample_dt, start_dt, max_rand_dt)
-plt.figure()
-for i, times in enumerate(spike_times):
-    plt.plot(times, np.ones_like(times)*i, '.b')
-plt.show()
+samples = generate_samples(input_vecs, args.nSamplesAL, args.probNoiseSamplesAL)
+# pprint(samples)
+
+sample_dt, start_dt, max_rand_dt = 50, 25, 1
+spike_times = samples_to_spike_times(samples, sample_dt, start_dt, max_rand_dt,
+                                     randomize_samples=args.randomizeSamplesAL)
+
+sys.stdout.write('Done!\tCreating input patterns\n\n')
+sys.stdout.flush()
+
+if args.renderSpikes:
+    render_spikes(spike_times, 'Input samples', 'input_samples.pdf', markersize=1)
+# plt.show()
+
+### -------------------------------------------------------------- ###
+### -------------------------------------------------------------- ###
+### -------------------------------------------------------------- ###
+
+sys.stdout.write('Creating simulator abstraction\n')
+sys.stdout.flush()
+
+pynnx = PyNNAL(backend)
+pynnx.setup(per_sim_params={'use_cpu': True})
+
+sys.stdout.write('Done!\tCreating simulator abstraction\n\n')
+sys.stdout.flush()
+
+
+sys.stdout.write('Creating populations\n')
+sys.stdout.flush()
+
+populations = {
+    'antenna': pynnx.Pop(args.nAL, 'SpikeSourceArray',
+                         {'spike_times': spike_times}, label='Antennae Lobe'),
+    'kenyon': pynnx.Pop(args.nKC, 'IF_cond_exp',
+                        kenyon_parameters, label='Kenyon Cell'),
+    'horn': pynnx.Pop(args.nLH, 'IF_cond_exp',
+                      horn_parameters, label='Lateral Horn'),
+    'decision': pynnx.Pop(args.nDN, 'IF_cond_exp',
+                          decision_parameters, label='Decision Neurons'),
+}
+
+pynnx.set_recording(populations['decision'], 'spikes')
+pynnx.set_recording(populations['kenyon'], 'spikes')
+pynnx.set_recording(populations['horn'], 'spikes')
+
+sys.stdout.write('Creating projections\n')
+sys.stdout.flush()
+
+static_w = {
+    'AL to KC': W2S*(1./(args.nAL*args.probAL)),
+    'AL to LH': W2S*(1./(args.nAL*args.probAL)),
+    'LH to KC': W2S*(1./args.nLH),
+    'KC to KC': W2S*(1./args.nKC),
+    'DN to DN': W2S*(1./args.nDN),
+    'KC to DN': W2S*(1./(args.nKC*args.probAL)),
+}
+
+out_list = output_connection_list(args.nKC, args.nDN, args.probKC2DN,
+                                  static_w['KC to DN'], args.inactiveScale)
+
+stdp = {
+    'timing_dependence': {
+        'name': 'SpikePairRule',
+        'params': {'tau_plus': 16.8, 'tau_minus': 33.7},
+    },
+    'weight_dependence': {
+        'name':'MultiplicativeWeightDependence',
+        'params': {'w_min': 0.0, 'w_max': static_w['KC to DN'], 'A_plus': 0.005, 'A_minus': 0.01},
+    }
+}
+
+projections = {
+    'AL to KC': pynnx.Proj(populations['antenna'], populations['kenyon'],
+                           'FixedProbabilityConnector', weights=static_w['AL to KC'], delays=1.0,
+                           conn_params={'p_connect': args.probAL2KC}, label='AL to KC'),
+
+    'AL to LH': pynnx.Proj(populations['antenna'], populations['horn'],
+                           'FixedProbabilityConnector', weights=static_w['AL to LH'], delays=1.0,
+                           conn_params={'p_connect': args.probAL2LH}, label='AL to LH'),
+    'LH to KC': pynnx.Proj(populations['horn'], populations['kenyon'],
+                           'AllToAllConnector', weights=static_w['LH to KC'], delays=1.0,
+                           conn_params={}, target='inhibitory', label='LH to KC'),
+
+    ### Inhibitory feedback --- kenyon cells
+    'KC to KC': pynnx.Proj(populations['kenyon'], populations['kenyon'],
+                            'AllToAllConnector', weights=static_w['KC to KC'], delays=1.0,
+                            conn_params={}, target='inhibitory', label='KC to KC'),
+
+    'KC to DN': pynnx.Proj(populations['kenyon'], populations['decision'],
+                           'FromListConnector', weights=None, delays=None,
+                           conn_params={'conn_list': out_list}, label='KC to DN',
+                           stdp=stdp),
+    ### Inhibitory feedback --- decision neurons
+    'DN to DN': pynnx.Proj(populations['decision'], populations['decision'],
+                           'AllToAllConnector', weights=static_w['DN to DN'], delays=1.0,
+                           conn_params={}, target='inhibitory', label='DN to DN'),
+}
+
+sys.stdout.write('Running simulation\n')
+sys.stdout.flush()
+
+sim_time = sample_dt * args.nSamplesAL * args.nPatternsAL
+
+pynnx.run(sim_time)
+
+
+sys.stdout.write('Done!\tRunning simulation\n\n')
+sys.stdout.flush()
+
+sys.stdout.write('Getting spikes:\n')
+sys.stdout.flush()
+
+sys.stdout.write('\tKenyon\n')
+sys.stdout.flush()
+k_spikes = pynnx.get_record(populations['kenyon'], 'spikes')
+
+sys.stdout.write('\tDecision\n')
+sys.stdout.flush()
+out_spikes = pynnx.get_record(populations['decision'], 'spikes')
+
+sys.stdout.write('\tHorn\n')
+sys.stdout.flush()
+horn_spikes = pynnx.get_record(populations['horn'], 'spikes')
+
+sys.stdout.write('Done!\tGetting spikes\n\n')
+sys.stdout.flush()
+
+sys.stdout.write('Getting weights:\n')
+sys.stdout.flush()
+sys.stdout.write('\tKenyon\n')
+sys.stdout.flush()
+try:
+    final_weights = pynnx.get_weights(projections['KC to DN'])
+except:
+    final_weights = None
+sys.stdout.write('Done!\t Getting weights\n\n')
+sys.stdout.flush()
+
+
+pynnx.end()
+
+
+sys.stdout.write('Saving experiment\n')
+sys.stdout.flush()
+# fname = 'mbody-'+args_to_str(args)+'.npz'
+fname = 'mbody-experiment.npz'
+np.savez_compressed(fname, args=args, sim_time=sim_time,
+    input_spikes=spike_times, input_vectors=input_vecs, input_samples=samples,
+    output_start_connections=out_list, output_end_weights=final_weights,
+    static_weights=static_w, stdp_params=stdp,
+    kenyon_spikes=k_spikes, decision_spikes=out_spikes, horn_spikes=horn_spikes,
+    neuron_parameters=neuron_params,
+)
+sys.stdout.write('Done!\tSaving experiment\n\n')
+sys.stdout.flush()
+
+
+
+if args.renderSpikes:
+    render_spikes(k_spikes, 'Kenyon activity', 'kenyon_activity.pdf')
+
+    render_spikes(out_spikes, 'Output activity', 'output_activity.pdf')
 
 
