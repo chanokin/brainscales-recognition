@@ -146,7 +146,7 @@ static_w = {
     'LH to KC': W2S*(1./args.nLH),
     'KC to KC': W2S*(1./args.nKC),
     'DN to DN': W2S*(1./args.nDN),
-    'KC to DN': W2S*(1./(args.nKC*args.probAL)),
+    'KC to DN': W2S*(1./(args.nKC*args.probAL2KC + args.probAL*args.nAL)),
 }
 
 out_list = output_connection_list(args.nKC, args.nDN, args.probKC2DN,
