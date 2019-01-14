@@ -1,0 +1,101 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[a4paper, margin=1in]{geometry}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+\usepackage{graphicx}
+\usepackage{todonotes}
+\usepackage{url}
+\usepackage{fancyvrb}
+\usepackage{xcolor}
+\usepackage{siunitx}
+\usepackage[T1]{fontenc}
+\usepackage{makecell}
+\renewcommand\theadfont{\bfseries\sffamily}
+
+\graphicspath{{images/}}
+
+\author{Garibaldi Pineda Garc{\'i}a}
+\title{Report 10-12-2018}
+
+\begin{document}
+
+\maketitle
+
+\section{Mushroom body experiment}
+%Three-layered network 
+%Input -> Kenyon -> Decision
+%Input -> Horn -| Kenyon
+
+
+\begin{table}[ht]
+\begin{center}
+	\begin{tabular}{r  c  c c c c  c c c c c }
+	   &  & \multicolumn{3}{c}{\thead{Mine}} & & & \multicolumn{3}{c}{\thead{Paper}} & \\
+	\thead{Parameter} & \thead{Units} & \thead{Kenyon} & \thead{Horn} & \thead{Decision} & & & \thead{Kenyon} & \thead{Horn} & \thead{Decision} & \\	
+	$C_m$ & \si{\nano\farad} & 
+        \multicolumn{3}{c}{0.25} & & & \multicolumn{3}{c}{--} & \\
+	$V_{reset}$ & \si{\milli\volt} &
+        \multicolumn{3}{c}{-70} & & & \multicolumn{3}{c}{--} &\\
+	$V_{rest}$ & \si{\milli\volt} &
+        \multicolumn{3}{c}{-65} & & & \multicolumn{3}{c}{--} & \\
+	$V_{thresh}$ & \si{\milli\volt} &
+        \multicolumn{3}{c}{-20} & & & \multicolumn{3}{c}{--} &\\
+	$e_{rev, E}$ & \si{\milli\volt} &
+        \multicolumn{3}{c}{0} & & & \multicolumn{3}{c}{0} &\\
+	$e_{rev, I}$ & \si{\milli\volt} & 
+        \multicolumn{3}{c}{-92} & & & \multicolumn{3}{c}{-92} &\\
+	$\tau_{m}$ & \si{\milli\second} &
+        \multicolumn{3}{c}{10} & & & & & & \\
+	$\tau_{refrac}$ & \si{\milli\second} & 
+        \multicolumn{3}{c}{1} & & & & & &\\
+	$\tau_{syn_E}$ & \si{\milli\second} & 
+        1.0 & 1.0 & 1.0 & & & 2 & 1 & 10 &\\
+	$\tau_{syn_I}$ & \si{\milli\second} & 
+        1.5 & 5.0 & 2.5 & & & 3 & -- & 5 & \\
+%    $g_{syn_E}$ & $nS$ & & & & \\
+%	$g_{syn_E}$ & $nS$ & & & & 	
+	\end{tabular}
+	\caption{Neuron parameters}
+	\label{tb:neuron-params}
+\end{center}
+\end{table}	
+
+\begin{table}[hb]
+\begin{center}
+\begin{tabular}{c c c c c}
+	\thead{From Pre} & \thead{To Post} & \thead{Me (type, w)}  & \thead{Paper (type, w)} & \thead{Target} \\
+    & & & & \\
+	Input & Kenyon & 
+        Prob (0.15); G(w, 20\%) & 
+        Prob (0.15); G(4.545, 1.25)\si{\nano\siemens} & Exc \\
+	Input & Horn   & 
+        Prob (0.2); w & 
+        A2A; 53.75/(15 + n)\si{\nano\siemens} & Exc \\
+    Horn & Kenyon &
+        A2A; w & 
+        A2A; 8.75\si{\nano\siemens} & Inh \\
+    Kenyon & Decision &
+    Rand; \begin{minipage}{4cm}
+        20\% G(High, 20\%), \\ 80\%G(Low, 20\%)
+    \end{minipage} & 
+    Rand; 
+    \begin{minipage}{4cm}
+        20\% G(1.25, 0.25)\si{\nano\siemens}, \\
+        80\% G(0.125, 0.025)\si{\nano\siemens}
+    \end{minipage} & Inh \\
+    Decision & Decision &
+    A2A; w & 
+    A2A; 75\si{\nano\siemens} & Inh \\
+    
+        
+\end{tabular}
+\caption{Connectivity stats}
+\label{tb:conn-stats}
+\end{center}
+\end{table}
+
+\bibliographystyle{unsrt}
+\bibliography{bibliography}
+\end{document}

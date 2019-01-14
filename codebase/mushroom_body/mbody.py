@@ -13,6 +13,15 @@ from pprint import pprint
 from args_setup import get_args
 from input_utils import *
 
+def gain_control_list(input_size, horn_size, max_w, cutoff=0.75):
+    n_cutoff = int(cutoff*horn_size)
+    matrix = np.ones((input_size*horn_size, 4))
+    matrix[:, 0] = np.tile(np.arange(input_size), horn_size)
+    matrix[:, 1] = np.tile(np.arange(horn_size), input_size)
+
+    matrix[:, 2] = np.tile( max_w / (n_cutoff + 1.0 + np.arange(horn_size)), input_size)
+
+    return matrix
 
 def output_connection_list(kenyon_size, decision_size, prob_active,
                            active_weight, inactive_scaling, seed=1):
@@ -62,7 +71,7 @@ base_params = {
     'e_rev_I': -e_rev, #mV
     'e_rev_E': 0.,#e_rev, #mV
     'tau_m': 10., #ms
-    'tau_refrac': 2.0, #ms
+    'tau_refrac': 1.0, #ms
 }
 
 kenyon_parameters = base_params.copy()
@@ -73,7 +82,7 @@ horn_parameters = base_params.copy()
 horn_parameters['tau_syn_E'] = 1.0#ms
 
 decision_parameters = base_params.copy()
-decision_parameters['tau_syn_E'] = 5.0 #ms
+decision_parameters['tau_syn_E'] = 1.0 #ms
 decision_parameters['tau_syn_I'] = 2.5 #ms
 
 neuron_params = {
@@ -91,12 +100,12 @@ input_vecs = generate_input_vectors(args.nPatternsAL, args.nAL, args.probAL)
 # input_vecs = generate_input_vectors(10, 100, 0.1)
 # pprint(input_vecs)
 
-samples = generate_samples(input_vecs, args.nSamplesAL, args.probNoiseSamplesAL)
+samples = generate_samples(input_vecs, args.nSamplesAL, args.probNoiseSamplesAL, method='exact')
 # pprint(samples)
 
 sample_dt, start_dt, max_rand_dt = 50, 25, 1
-spike_times = samples_to_spike_times(samples, sample_dt, start_dt, max_rand_dt,
-                                     randomize_samples=args.randomizeSamplesAL)
+sample_indices, spike_times = samples_to_spike_times(samples, sample_dt, start_dt, max_rand_dt,
+                                randomize_samples=args.randomizeSamplesAL)
 
 sys.stdout.write('Done!\tCreating input patterns\n\n')
 sys.stdout.flush()
@@ -141,16 +150,23 @@ sys.stdout.write('Creating projections\n')
 sys.stdout.flush()
 
 static_w = {
-    'AL to KC': W2S*(1./(args.nAL*args.probAL)),
-    'AL to LH': W2S*(1./(args.nAL*args.probAL)),
-    'LH to KC': W2S*(1./args.nLH),
-    'KC to KC': W2S*(1./args.nKC),
-    'DN to DN': W2S*(1./args.nDN),
-    'KC to DN': W2S*(1./(args.nKC*args.probAL2KC + args.probAL*args.nAL)),
+    'AL to KC': W2S*(1./(args.nAL*args.probAL*args.probAL2KC)),
+    'AL to LH': W2S*(1./(args.nAL*args.probAL*args.probAL2LH)),
+    'LH to KC': W2S*(1./(args.probAL*args.probAL2LH*args.nLH)),
+    'KC to KC': W2S*(1./(args.probAL2KC*args.probAL*args.nKC)),
+    'DN to DN': W2S*(1./(args.probAL2KC*args.probAL*args.probKC2DN*args.nDN)),
+    # 'DN to DN': W2S*(1./(args.nDN)),
+    'KC to DN': W2S*(1./(args.probAL2KC*args.probAL*args.nKC)),
 }
 
+rand_w = {
+    'AL to KC': pynnx.sim.RandomDistribution('normal',
+                    (static_w['AL to KC'], static_w['AL to KC']*0.2),
+                    pynnx.sim.NumpyRNG(seed=1)),
+}
+gain_list = gain_control_list(args.nAL, args.nLH, W2S)
 out_list = output_connection_list(args.nKC, args.nDN, args.probKC2DN,
-                                  static_w['KC to DN'], args.inactiveScale)
+                                  static_w['KC to DN']/2.0, args.inactiveScale)
 
 stdp = {
     'timing_dependence': {
@@ -159,18 +175,24 @@ stdp = {
     },
     'weight_dependence': {
         'name':'MultiplicativeWeightDependence',
-        'params': {'w_min': 0.0, 'w_max': static_w['KC to DN'], 'A_plus': 0.005, 'A_minus': 0.01},
+        'params': {'w_min': static_w['KC to DN']/10.0, 'w_max': static_w['KC to DN'],
+                   'A_plus': 0.01, 'A_minus': 0.01},
     }
 }
 
 projections = {
     'AL to KC': pynnx.Proj(populations['antenna'], populations['kenyon'],
-                           'FixedProbabilityConnector', weights=static_w['AL to KC'], delays=1.0,
+                           'FixedProbabilityConnector', weights=rand_w['AL to KC'], delays=1.0,
                            conn_params={'p_connect': args.probAL2KC}, label='AL to KC'),
 
+    # 'AL to LH': pynnx.Proj(populations['antenna'], populations['horn'],
+    #                        'FixedProbabilityConnector', weights=static_w['AL to LH'], delays=1.0,
+    #                        conn_params={'p_connect': args.probAL2LH}, label='AL to LH'),
+
     'AL to LH': pynnx.Proj(populations['antenna'], populations['horn'],
-                           'FixedProbabilityConnector', weights=static_w['AL to LH'], delays=1.0,
-                           conn_params={'p_connect': args.probAL2LH}, label='AL to LH'),
+                           'FromListConnector', weights=None, delays=None,
+                           conn_params={'conn_list': gain_list}, label='AL to LH'),
+
     'LH to KC': pynnx.Proj(populations['horn'], populations['kenyon'],
                            'AllToAllConnector', weights=static_w['LH to KC'], delays=1.0,
                            conn_params={}, target='inhibitory', label='LH to KC'),
@@ -239,11 +261,14 @@ sys.stdout.flush()
 # fname = 'mbody-'+args_to_str(args)+'.npz'
 fname = 'mbody-experiment.npz'
 np.savez_compressed(fname, args=args, sim_time=sim_time,
-    input_spikes=spike_times, input_vectors=input_vecs, input_samples=samples,
+    input_spikes=spike_times, input_vectors=input_vecs,
+    input_samples=samples, sample_indices=sample_indices,
     output_start_connections=out_list, output_end_weights=final_weights,
+    lateral_horn_connections=gain_list,
     static_weights=static_w, stdp_params=stdp,
     kenyon_spikes=k_spikes, decision_spikes=out_spikes, horn_spikes=horn_spikes,
     neuron_parameters=neuron_params,
+    sample_dt=sample_dt, start_dt=start_dt, max_rand_dt=max_rand_dt,
 )
 sys.stdout.write('Done!\tSaving experiment\n\n')
 sys.stdout.flush()
