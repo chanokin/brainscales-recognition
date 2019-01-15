@@ -14,9 +14,9 @@ from args_setup import get_args
 from input_utils import *
 
 def gain_control_list(input_size, horn_size, max_w, cutoff=0.75):
-    n_cutoff = int(cutoff*horn_size)
+    n_cutoff = 15#int(cutoff*horn_size)
     matrix = np.ones((input_size*horn_size, 4))
-    matrix[:, 0] = np.tile(np.arange(input_size), horn_size)
+    matrix[:, 0] = np.repeat(np.arange(input_size), horn_size)
     matrix[:, 1] = np.tile(np.arange(horn_size), input_size)
 
     matrix[:, 2] = np.tile( max_w / (n_cutoff + 1.0 + np.arange(horn_size)), input_size)
@@ -26,7 +26,7 @@ def gain_control_list(input_size, horn_size, max_w, cutoff=0.75):
 def output_connection_list(kenyon_size, decision_size, prob_active,
                            active_weight, inactive_scaling, seed=1):
     matrix = np.ones((kenyon_size * decision_size, 4))
-    matrix[:, 0] = np.tile(np.arange(kenyon_size), decision_size)
+    matrix[:, 0] = np.repeat(np.arange(kenyon_size), decision_size)
     matrix[:, 1] = np.tile(np.arange(decision_size), kenyon_size)
 
     np.random.seed(seed)
@@ -64,19 +64,19 @@ backend = args.backend
 # heidelberg's brainscales seems to like these params
 e_rev = 92 #mV
 base_params = {
-    'cm': 0.25, #nF
+    'cm': 0.09, #nF
     'v_reset': -70., #mV
     'v_rest': -65., #mV
-    'v_thresh': -20., #mV
+    'v_thresh': -55., #mV
     'e_rev_I': -e_rev, #mV
     'e_rev_E': 0.,#e_rev, #mV
     'tau_m': 10., #ms
-    'tau_refrac': 1.0, #ms
+    'tau_refrac': 5.0, #ms
 }
 
 kenyon_parameters = base_params.copy()
 kenyon_parameters['tau_syn_E'] = 1.0#ms
-kenyon_parameters['tau_syn_I'] = 1.5#ms
+kenyon_parameters['tau_syn_I'] = 3.0#ms
 
 horn_parameters = base_params.copy()
 horn_parameters['tau_syn_E'] = 1.0#ms
@@ -150,13 +150,20 @@ sys.stdout.write('Creating projections\n')
 sys.stdout.flush()
 
 static_w = {
-    'AL to KC': W2S*(1./(args.nAL*args.probAL*args.probAL2KC)),
-    'AL to LH': W2S*(1./(args.nAL*args.probAL*args.probAL2LH)),
-    'LH to KC': W2S*(1./(args.probAL*args.probAL2LH*args.nLH)),
-    'KC to KC': W2S*(1./(args.probAL2KC*args.probAL*args.nKC)),
-    'DN to DN': W2S*(1./(args.probAL2KC*args.probAL*args.probKC2DN*args.nDN)),
+    'AL to KC': W2S*(100.0/float(args.nAL)),
+    # 'AL to LH': W2S*(1./(args.nAL*args.probAL)),
+    # 'AL to LH': W2S*(0.787 * (100.0/float(args.nAL))),
+    'AL to LH': W2S*(6.5 * (100.0/float(args.nAL))),
+    'LH to KC': W2S*(1.925 * (20.0/float(args.nLH))),
+
+    'KC to KC': W2S*(1./float(args.nKC)),
+
+    'KC to DN': W2S*(1. * (2500.0/float(args.nKC))),
+    # 'DN to DN': W2S*(0.4 * (100.0/float(args.nDN))),
+    'DN to DN': W2S*(0.3 * (100.0/float(args.nDN))),
+    # 'DN to DN': W2S*(1./1.),
     # 'DN to DN': W2S*(1./(args.nDN)),
-    'KC to DN': W2S*(1./(args.probAL2KC*args.probAL*args.nKC)),
+
 }
 
 rand_w = {
@@ -164,9 +171,11 @@ rand_w = {
                     (static_w['AL to KC'], static_w['AL to KC']*0.2),
                     pynnx.sim.NumpyRNG(seed=1)),
 }
-gain_list = gain_control_list(args.nAL, args.nLH, W2S)
+
+gain_list = gain_control_list(args.nAL, args.nLH, static_w['AL to LH'])
+
 out_list = output_connection_list(args.nKC, args.nDN, args.probKC2DN,
-                                  static_w['KC to DN']/2.0, args.inactiveScale)
+                                  static_w['KC to DN'], args.inactiveScale)
 
 stdp = {
     'timing_dependence': {
@@ -175,8 +184,12 @@ stdp = {
     },
     'weight_dependence': {
         'name':'MultiplicativeWeightDependence',
-        'params': {'w_min': static_w['KC to DN']/10.0, 'w_max': static_w['KC to DN'],
-                   'A_plus': 0.01, 'A_minus': 0.01},
+        'params': {
+            # 'w_min': (static_w['KC to DN'])/10.0,
+            'w_min': 0.0,
+            'w_max': (static_w['KC to DN']),
+            'A_plus': 0.00001, 'A_minus': 0.00005
+        },
     }
 }
 
@@ -198,9 +211,9 @@ projections = {
                            conn_params={}, target='inhibitory', label='LH to KC'),
 
     ### Inhibitory feedback --- kenyon cells
-    'KC to KC': pynnx.Proj(populations['kenyon'], populations['kenyon'],
-                            'AllToAllConnector', weights=static_w['KC to KC'], delays=1.0,
-                            conn_params={}, target='inhibitory', label='KC to KC'),
+    # 'KC to KC': pynnx.Proj(populations['kenyon'], populations['kenyon'],
+    #                         'AllToAllConnector', weights=static_w['KC to KC'], delays=1.0,
+    #                         conn_params={}, target='inhibitory', label='KC to KC'),
 
     'KC to DN': pynnx.Proj(populations['kenyon'], populations['decision'],
                            'FromListConnector', weights=None, delays=None,
