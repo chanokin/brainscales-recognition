@@ -7,6 +7,9 @@ import numpy as np
 import numbers
 from . import *
 from .image_input import NestImagePopulation
+from .wafer import Wafer as WAL
+from .graph import Graph, Node
+from .brainscales_placement import *
 
 import os
 try:
@@ -103,13 +106,14 @@ class SplitProjection(object):
         self.target = target
         self.stdp = stdp
         self.conn_params = conn_params
+        self._projections = None
         if label is None:
             self.label = 'SplitProjection from {} to {}'.format(
                             self.source.label, self.destination.label)
         else:
             self.label = label
         
-        partition()
+        self.partition()
 
     def partition(self):
         src = self.source
@@ -139,11 +143,12 @@ class SplitProjection(object):
                     
                 proj = self._proj(src_part, dst_part, conn, w, d, 
                         tgt, params, lbl, stdp)
-                if prjs is None:
+
+                if proj is None:
                     continue
                 
                 src_prjs[post.label] = {'ids': {'pre': pre_ids, 'post': post_ids},
-                                        'proj': prjs}
+                                        'proj': proj}
 
             projs[pre.label] = src_prjs
 
@@ -153,16 +158,22 @@ class SplitProjection(object):
     def _proj(self, pre, post, conn, w, d, tgt, params, lbl, stdp=None):
         cname = conn if type(conn) == type(u'') else conn.__name__
         if cname.startswith('FromList'):
-            from_list_connector(pre, post, conn, w, d, tgt, params, lbl, stdp=None)
+            return self.from_list_connector(pre, post, conn, w, d, tgt, params, lbl, stdp=None)
         elif cname.startswith('OneToOne'):
-            one_to_one_connector(pre, post, conn, w, d, tgt, params, lbl, stdp=None)
+            return self.one_to_one_connector(pre, post, conn, w, d, tgt, params, lbl, stdp=None)
         elif cname.startswith('AllToAll'):
-            all_to_all_connector(pre, post, conn, w, d, tgt, params, lbl, stdp=None)
+            return self.all_to_all_connector(pre, post, conn, w, d, tgt, params, lbl, stdp=None)
+        elif cname.startswith('FixedProbability'):
+            return self.stats_connector(pre, post, conn, w, d, tgt, params, lbl, stdp=None)
+        else:
+            raise Exception("unsupported connection for splitting")
+            # return None
 
 
     def stats_connector(self, pre, post, conn, w, d, tgt, params, lbl, stdp=None):
         pynnal = self.pynnal
-
+        return pynnal.Proj(pre['pop'], post['pop'], conn, w, d,
+                target=tgt, stdp=stdp, label=lbl, conn_params=params)
 
     def one_to_one_connector(self, pre, post, conn, w, d, tgt, params, lbl, stdp=None):
         pynnal = self.pynnal
@@ -172,12 +183,8 @@ class SplitProjection(object):
         return pynnal.Proj(pre['pop'], post['pop'], conn, w, d, 
                 target=tgt, stdp=stdp, label=lbl, conn_params=params)
 
-
     def all_to_all_connector(self, pre, post, conn, w, d, tgt, params, lbl, stdp=None):
-        pynnal = self.pynnal
-        return pynnal.Proj(pre['pop'], post['pop'], conn, w, d, 
-                target=tgt, stdp=stdp, label=lbl, conn_params=params)
-
+        return self.stats_connector(pre, post, conn, w, d, tgt, params, lbl, stdp)
 
     def from_list_connector(self, pre, post, conn, w, d, tgt, params, lbl, stdp=None):
         pynnal = self.pynnal
@@ -196,7 +203,7 @@ class SplitProjection(object):
     def getWeights(self, format='array'):
         pynnal = self.pynnal
         mtx = np.ones((self.source.size, self.destination.size)) * np.inf
-        for row in proj:
+        for row in self._projections:
             for part in row:
                 pre_ids = part['ids']['pre']
                 r0, rN = pre_ids[0], pre_ids[-1]
@@ -220,6 +227,7 @@ class PyNNAL(object):
         self._sim = simulator
         sim_name = simulator.__name__
         self._max_subpop_size = np.inf
+        self._wafer = None
         if GENN in sim_name:
             self._sim_name = GENN
         elif NEST in sim_name:
@@ -231,6 +239,7 @@ class PyNNAL(object):
             raise Exception("Not supported simulator ({})".format(sim_name))
 
         self._first_run = True
+        self._graph = Graph()
 
     def __del__(self):
         try:
@@ -252,20 +261,33 @@ class PyNNAL(object):
         self._extra_config = per_sim_params
         
         if self.sim_name == BSS: #do extra setup for BrainScaleS
+            wafer = per_sim_params.get('wafer', None)
             marocco = PyMarocco()
             marocco.backend = PyMarocco.Hardware
+            if wafer is not None:
+                per_sim_params.pop('wafer')
+                marocco.default_wafer = C.Wafer(wafer)
+                runtime = Runtime(marocco.default_wafer)
+                setup_args['marocco_runtime'] = runtime
+                self.runtime = runtime
+                self._wafer = WAL(wafer_id=wafer)
+
+
+
             marocco.calib_path = per_sim_params.get('calib_path',
-                            "/wang/data/calibration/brainscales/WIP-2018-09-18")
+                            '/wang/data/calibration/brainscales/WIP-2018-09-18')
             
             marocco.defects.path = marocco.calib_path
             marocco.verification = PyMarocco.Skip
             marocco.checkl1locking = PyMarocco.SkipCheck
-            
+
             per_sim_params.pop('calib_path', None)
             
             setup_args['marocco'] = marocco
             self.marocco = marocco
-        
+
+
+
         for k in per_sim_params:
             setup_args[k] = per_sim_params[k]
 
@@ -276,7 +298,8 @@ class PyNNAL(object):
     def run(self, duration, gmax=1023, gmax_div=1):
         if self.sim_name == BSS:
             if self._first_run:
-                # self.marocco.skip_mapping = False
+                self._do_BSS_placement()
+                self.marocco.skip_mapping = True
                 # self.marocco.backend = PyMarocco.None
 
                 # self.sim.reset()
@@ -325,7 +348,10 @@ class PyNNAL(object):
         if max_sub_size is None:
             max_sub_size = self._max_subpop_size
         if type(cell_class) == type(u''): #convert from text representation to object
+            txt_class = cell_class
             cell_class = self._get_obj(cell_class)
+        else:
+            txt_class = cell_class.__name__
             # cname = cell_class
         # else:
             # cname = cell_class.__name__
@@ -335,13 +361,18 @@ class PyNNAL(object):
         
         if size <= max_sub_size:# or is_source_pop:
             if self._ver() == 7:
-                return sim.Population(size, cell_class, params, label=label)
+                pop = sim.Population(size, cell_class, params, label=label)
             else:
-                return sim.Population(size, cell_class(**params), label=label)
+                pop = sim.Population(size, cell_class(**params), label=label)
+
+            is_source = 'SpikeSource' in txt_class
+            self._graph.add(pop, is_source)
+
+            return pop
         else:
             ### first argument is this PYNNAL instance, needed to loop back here!
             ### a bit spaghetti but it's less code :p
-            return SubPopulation(self, size, cell_class, params, label, shape, 
+            return SplitPopulation(self, size, cell_class, params, label, shape,
                     max_sub_size)
 
     def _get_stdp_dep(self, config):
@@ -357,7 +388,7 @@ class PyNNAL(object):
             isinstance(source_pop, SplitPopulation):
             ### first argument is this PYNNAL instance, needed to loop back here!
             ### a bit spaghetti but it's less code :p
-            return SubProjection(self, source_pop, dest_pop, conn_class, weights, delays, 
+            return SplitProjection(self, source_pop, dest_pop, conn_class, weights, delays,
              target=target, stdp=None, label=None, conn_params={})
             
         if type(conn_class) == type(u''): #convert from text representation to object
@@ -395,7 +426,7 @@ class PyNNAL(object):
             else:
                 syn_dyn = None
 
-            return sim.Projection(pre_pop, dest_pop, conn,
+            proj = sim.Projection(pre_pop, dest_pop, conn,
                     target=target, synapse_dynamics=syn_dyn, label=label)
             
         else:
@@ -418,9 +449,12 @@ class PyNNAL(object):
             else:
                 synapse = sim.StaticSynapse(weight=weights, delay=delays)
 
-            return sim.Projection(source_pop, dest_pop, conn_class(**conn_params), 
+            proj = sim.Projection(source_pop, dest_pop, conn_class(**conn_params),
                     synapse_type=synapse, receptor_type=target, label=label)
 
+
+        self._graph.plug(source_pop, dest_pop)
+        return proj
 
     def get_spikes(self, pop, segment=0):
         spikes = []
@@ -482,5 +516,8 @@ class PyNNAL(object):
             return record() #execute method :ugly-a-f:
         else:
             return pop.get_data().segments[0].filter(name=recording)
-        
 
+
+    def _do_BSS_placement(self):
+        self.placer = WaferPlacer(self._graph, self._wafer)
+        self.placer._place()
