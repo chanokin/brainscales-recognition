@@ -20,40 +20,33 @@ def generate_samples(input_vectors, num_samples, prob_noise, seed=1, method=None
     np.random.seed(seed)
     
     samples = None
-    if method=='all':
-        for i in range(input_vectors.shape[0]):
-            samp = np.tile(input_vectors[i, :], (num_samples, 1)).astype('int')
+
+    for i in range(input_vectors.shape[0]):
+        samp = np.tile(input_vectors[i, :], (num_samples, 1)).astype('int')
+        if method == 'all':
             dice = np.random.uniform(0., 1., samp.shape)
             whr = np.where(dice < prob_noise)
             samp[whr] = 1 - samp[whr]
-            if samples is None:
-                samples = samp
-            else:
-                samples = np.append(samples, samp, axis=0)
-    elif method=='exact':
-        n_flips = int(np.mean(input_vectors.sum(axis=1)) * prob_noise)
-        for i in range(input_vectors.shape[0]):
-            samp = np.tile(input_vectors[i, :], (num_samples, 1)).astype('int')
+        elif method == 'exact':
+            n_flips = int(np.mean(input_vectors.sum(axis=1)) * prob_noise)
             for j in range(num_samples):
-                indices = np.random.choice(np.where(input_vectors[i] == 1)[0], size=n_flips, replace=False)
-                samp[j, indices] = 0
-                indices = np.random.choice(np.where(input_vectors[i] == 0)[0], size=n_flips, replace=False)
+                # flip zeros to ones
+                indices = np.random.choice(np.where(samp[j] == 0)[0], size=n_flips, replace=False)
                 samp[j, indices] = 1
-            if samples is None:
-                samples = samp
-            else:
-                samples = np.append(samples, samp, axis=0)
-    else:
-        n_flips = int(np.mean(input_vectors.sum(axis=1)) * prob_noise) * 2
-        for i in range(input_vectors.shape[0]):
-            samp = np.tile(input_vectors[i, :], (num_samples, 1)).astype('int')
+
+                #flip ones to zeros
+                indices = np.random.choice(np.where(samp[j] == 1)[0], size=n_flips, replace=False)
+                samp[j, indices] = 0
+        else:
+            n_flips = int(np.mean(input_vectors.sum(axis=1)) * prob_noise) * 2
             for j in range(num_samples):
                 indices = np.random.choice(np.arange(input_vectors.shape[1]), size=n_flips, replace=False)
                 samp[j, indices] = 1 - samp[j, indices]
-            if samples is None:
-                samples = samp
-            else:
-                samples = np.append(samples, samp, axis=0)
+
+        if samples is None:
+            samples = samp
+        else:
+            samples = np.append(samples, samp, axis=0)
 
     np.random.seed()
     return samples

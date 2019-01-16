@@ -39,14 +39,14 @@
 	\thead{Parameter} & \thead{Units} & \thead{Kenyon} & \thead{Horn} & \thead{Decision} & & & \thead{Kenyon} & \thead{Horn} & \thead{Decision} & \\	
 \rowcolor{Gray}
 	$C_m$ & \si{\nano\farad} & 
-        \multicolumn{3}{c}{0.25} & & & \multicolumn{3}{c}{--} & \\
+        \multicolumn{3}{c}{0.09} & & & \multicolumn{3}{c}{0.3} & \\
 	$V_{reset}$ & \si{\milli\volt} &
         \multicolumn{3}{c}{-70} & & & \multicolumn{3}{c}{--} &\\
 \rowcolor{Gray}
 	$V_{rest}$ & \si{\milli\volt} &
         \multicolumn{3}{c}{-65} & & & \multicolumn{3}{c}{--} & \\
 	$V_{thresh}$ & \si{\milli\volt} &
-        \multicolumn{3}{c}{-20} & & & \multicolumn{3}{c}{--} &\\
+        \multicolumn{3}{c}{-55} & & & \multicolumn{3}{c}{--} &\\
 \rowcolor{Gray}
 	$e_{rev, E}$ & \si{\milli\volt} &
         \multicolumn{3}{c}{0} & & & \multicolumn{3}{c}{0} &\\
@@ -59,9 +59,9 @@
         \multicolumn{3}{c}{1} & & & & & &\\
 \rowcolor{Gray}
 	$\tau_{syn_E}$ & \si{\milli\second} & 
-        1.0 & 1.0 & 1.0 & & & 2 & 1 & 10 &\\
+        1.0 & 1.0 & 1.0 & & & 2.0 & 1.0 & 10.0 &\\
 	$\tau_{syn_I}$ & \si{\milli\second} & 
-        1.5 & 5.0 & 2.5 & & & 3 & -- & 5 & \\
+        3.0 & -- & 5.0 & & & 3.0 & -- & 5.0 & \\
 %    $g_{syn_E}$ & $nS$ & & & & \\
 %	$g_{syn_E}$ & $nS$ & & & & 	
 	\end{tabular}
@@ -113,39 +113,39 @@
 \begin{table}[hb]
     \renewcommand{\arraystretch}{1.2}
     \begin{center}
-        \begin{tabular}{l c c c c}
-            \thead{From $\rightarrow$ To} & \thead{Me}  & \thead{Paper} & \thead{size ratio} & \thead{w ratio}\\
+        \begin{tabular}{l c c }
+            \thead{From $\rightarrow$ To} & \thead{Me}  & \thead{Paper}\\
 %            & & & & \\
+%%% -----------------------------------------------------
 \rowcolor{Gray}
             Input  $\rightarrow$   Kenyon & 
-            G(w, 20\%) & 
-            G(4.545, 1.25)\si{\nano\siemens} 
-            & & \\
+            Gauss($\omega$, 20\%) & 
+            Gauss(4.545, 1.25)\si{\nano\siemens} \\
+%%% -----------------------------------------------------
             Input  $\rightarrow$  Horn   & 
-            w/(15 + n) & 
-            53.75/(15 + n)\si{\nano\siemens} 
-            & & \\
+            ${6.5\omega}/({15 + n})$ & 
+            ${53.75}/({15 + n})$\si{\nano\siemens} \\
+%%% -----------------------------------------------------
 \rowcolor{Gray}
             Horn  $\rightarrow$  Kenyon &
-            w & 
-            8.75\si{\nano\siemens} 
-            & & \\
+            $1.925\omega$ & 
+            8.75\si{\nano\siemens} \\
+%%% -----------------------------------------------------
             Kenyon  $\rightarrow$  Decision &
             \begin{minipage}{4cm}
                 \centering
-                G(High, 20\%), \\G(Low, 20\%)
+                Gauss(High=$\omega$, 20\%), \\Gauss(High/10, 20\%)
             \end{minipage} & 
             \begin{minipage}{4cm}
                 \centering
                 G(1.25, 0.25)\si{\nano\siemens}, \\
                 G(0.125, 0.025)\si{\nano\siemens}
-            \end{minipage} 
-            & & \\
+            \end{minipage} \\
+%%% -----------------------------------------------------
 \rowcolor{Gray}
             Decision  $\rightarrow$  Decision &
-            w & 
-            75\si{\nano\siemens} 
-            & & \\
+            $0.3\omega$ & 
+            75\si{\nano\siemens} \\
             
             
         \end{tabular}

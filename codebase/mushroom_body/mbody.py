@@ -71,19 +71,20 @@ base_params = {
     'e_rev_I': -e_rev, #mV
     'e_rev_E': 0.,#e_rev, #mV
     'tau_m': 10., #ms
-    'tau_refrac': 5.0, #ms
+    'tau_refrac': 1., #ms
 }
 
 kenyon_parameters = base_params.copy()
 kenyon_parameters['tau_syn_E'] = 1.0#ms
-kenyon_parameters['tau_syn_I'] = 3.0#ms
+kenyon_parameters['tau_syn_I'] = 5.0#ms
 
 horn_parameters = base_params.copy()
 horn_parameters['tau_syn_E'] = 1.0#ms
 
 decision_parameters = base_params.copy()
 decision_parameters['tau_syn_E'] = 1.0 #ms
-decision_parameters['tau_syn_I'] = 2.5 #ms
+# decision_parameters['tau_syn_I'] = 2.5 #ms
+decision_parameters['tau_syn_I'] = 5.0 #ms
 
 neuron_params = {
     'base': base_params, 'kenyon': kenyon_parameters,
@@ -96,16 +97,17 @@ sys.stdout.write('Creating input patterns\n')
 sys.stdout.flush()
 
 
-input_vecs = generate_input_vectors(args.nPatternsAL, args.nAL, args.probAL)
+input_vecs = generate_input_vectors(args.nPatternsAL, args.nAL, args.probAL, seed=123)
 # input_vecs = generate_input_vectors(10, 100, 0.1)
 # pprint(input_vecs)
 
-samples = generate_samples(input_vecs, args.nSamplesAL, args.probNoiseSamplesAL, method='exact')
+samples = generate_samples(input_vecs, args.nSamplesAL, args.probNoiseSamplesAL, seed=234,
+                           method='exact')
 # pprint(samples)
 
 sample_dt, start_dt, max_rand_dt = 50, 25, 1
 sample_indices, spike_times = samples_to_spike_times(samples, sample_dt, start_dt, max_rand_dt,
-                                randomize_samples=args.randomizeSamplesAL)
+                                randomize_samples=args.randomizeSamplesAL, seed=345)
 
 sys.stdout.write('Done!\tCreating input patterns\n\n')
 sys.stdout.flush()
@@ -156,11 +158,11 @@ static_w = {
     'AL to LH': W2S*(6.5 * (100.0/float(args.nAL))),
     'LH to KC': W2S*(1.925 * (20.0/float(args.nLH))),
 
-    'KC to KC': W2S*(1./float(args.nKC)),
+    'KC to KC': W2S*(0.1*(2500.0/float(args.nKC))),
 
-    'KC to DN': W2S*(1. * (2500.0/float(args.nKC))),
+    'KC to DN': W2S*(1.5 * (2500.0/float(args.nKC))),
     # 'DN to DN': W2S*(0.4 * (100.0/float(args.nDN))),
-    'DN to DN': W2S*(0.3 * (100.0/float(args.nDN))),
+    'DN to DN': W2S*(1. * (100.0/float(args.nDN))),
     # 'DN to DN': W2S*(1./1.),
     # 'DN to DN': W2S*(1./(args.nDN)),
 
@@ -175,7 +177,8 @@ rand_w = {
 gain_list = gain_control_list(args.nAL, args.nLH, static_w['AL to LH'])
 
 out_list = output_connection_list(args.nKC, args.nDN, args.probKC2DN,
-                                  static_w['KC to DN'], args.inactiveScale)
+                                  static_w['KC to DN'], args.inactiveScale,
+                                  seed=None)
 
 stdp = {
     'timing_dependence': {
@@ -211,9 +214,9 @@ projections = {
                            conn_params={}, target='inhibitory', label='LH to KC'),
 
     ### Inhibitory feedback --- kenyon cells
-    # 'KC to KC': pynnx.Proj(populations['kenyon'], populations['kenyon'],
-    #                         'AllToAllConnector', weights=static_w['KC to KC'], delays=1.0,
-    #                         conn_params={}, target='inhibitory', label='KC to KC'),
+    'KC to KC': pynnx.Proj(populations['kenyon'], populations['kenyon'],
+                            'AllToAllConnector', weights=static_w['KC to KC'], delays=1.0,
+                            conn_params={}, target='inhibitory', label='KC to KC'),
 
     'KC to DN': pynnx.Proj(populations['kenyon'], populations['decision'],
                            'FromListConnector', weights=None, delays=None,
