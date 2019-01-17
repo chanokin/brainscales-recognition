@@ -10,6 +10,7 @@ from .image_input import NestImagePopulation
 from .wafer import Wafer as WAL
 from .graph import Graph, Node
 from .brainscales_placement import *
+from .partitioning import SplitPopulation, SplitProjection
 
 import os
 try:
@@ -24,209 +25,19 @@ except:
     pass
 
 
-class SplitPopulation(object):
-    """
-        When using the BrainScaleS toolchain we faced some problems with the
-        partition and place-and-route algorithms. The initial problem is 
-        that the tools break when using certain connectivity (e.g. populations
-        greater than 200 with one-to-one connectors). This class attempts to
-        avoid the problem by partitionining before the toolchain requires it.
-    """
-    ### This seems like reinventing the wheel and I shouldn't have to!
-    def __init__(self, pynnal, size, cell_class, params, label=None, shape=None,
-        max_sub_size=BSS_MAX_SUBPOP_SIZE):
-        """
-            pynnal: PyNN Abstraction Layer instance, we use it to avoid re-coding
-                different cases for different PyNN versions while creating
-                the populations.
-            size: original size of the population
-            cell_class: original PyNN cell type of the population
-            params: original PyNN parameters for the given cell type
-            label: original population label/name
-            shape: shape of the original population (currently only 1D supported)
-            max_sub_size: size of the sub-populations to be created
-        """
-        self.pynnal = pynnal
-        self.size = size
-        self.cell_class = cell_class
-        self.params = params
-        if label is None:
-            self.label = "SplitPopulation ({:05d})".format(
-                                            np.random.randint(0, 99999))
-        else:
-            self.label = label
-
-        if shape is None:
-            self.shape = (size,) # tuple expressing grid size, 1D by default
-        else:
-            assert np.prod(shape) == size, \
-                "Total number of neurons should equal grid dimensions"
-            self.shape = shape
-
-        ### TODO: this will likely change if shape is not 1D
-        self.max_sub_size = max_sub_size
-        self.n_sub_pops = calc_n_part(self.size, self.max_sub_size) 
-        
-        ### actually do the partitioning
-        self.partition()
-
-    def partition(self):
-        if len(self.shape) == 1:
-            pops = []
-            count = 0
-            for i in range(self.n_sub_pops):
-                size = min(self.max_sub_size, self.size - count)
-                ids = np.range(count, count+size)
-                count += self.max_sub_size
-                label = self.label + " - sub %d"%(i+1)
-                pops.append({
-                    'ids': ids,
-                    'pop': self.pynnal.Pop(size, self.cell_class, label)
-                })
-
-        ### TODO: deal with 2D, 3D!
-        self._populations = pops
-
-
-
-class SplitProjection(object):
-    """
-    Since we had to pre-partition the populations, now we need to split-up
-    the projections as well.
-    """
-    ### This seems like reinventing the wheel and I shouldn't have to!
-    def __init__(self, pynnal, source_pop, dest_pop, conn_class, weights, delays, 
-             target='excitatory', stdp=None, label=None, conn_params={}):
-        self.pynnal = pynnal
-        self.source = source_pop
-        self.destination = dest_pop
-        self.conn_class = conn_class
-        self.weights = weights,
-        self.delays = delays,
-        self.target = target
-        self.stdp = stdp
-        self.conn_params = conn_params
-        self._projections = None
-        if label is None:
-            self.label = 'SplitProjection from {} to {}'.format(
-                            self.source.label, self.destination.label)
-        else:
-            self.label = label
-        
-        self.partition()
-
-    def partition(self):
-        src = self.source
-        dst = self.destination
-        conn, params = self.conn_class, self.conn_params
-        w, d, tgt = self.weights, self.delays, self.target
-        stdp = self.stdp
-        
-        if isinstance(src, SplitPopulation):
-            pres = src._populations
-        else:
-            pres = [{'ids': np.arange(src.size), 'pop': src}]
-        
-        if isinstance(dst, SplitPopulation):
-            posts = dst._populations
-        else:
-            posts = [{'ids': np.arange(dst.size), 'pop': dst}]
-        
-        projs = {}
-        for src_part in src:
-            pre_ids, pre = src_part['ids'], src_part['pop']
-            src_prjs = projs.get(pre.label, dict)
-            
-            for dst_part in dst:
-                post_ids, post = dst_part['ids'], dst_part['pop']
-                lbl = '{} sub {} - {}'.format(self.label, pre.label, post.label)
-                    
-                proj = self._proj(src_part, dst_part, conn, w, d, 
-                        tgt, params, lbl, stdp)
-
-                if proj is None:
-                    continue
-                
-                src_prjs[post.label] = {'ids': {'pre': pre_ids, 'post': post_ids},
-                                        'proj': proj}
-
-            projs[pre.label] = src_prjs
-
-        self._projections = projs
-
-
-    def _proj(self, pre, post, conn, w, d, tgt, params, lbl, stdp=None):
-        cname = conn if type(conn) == type(u'') else conn.__name__
-        if cname.startswith('FromList'):
-            return self.from_list_connector(pre, post, conn, w, d, tgt, params, lbl, stdp=None)
-        elif cname.startswith('OneToOne'):
-            return self.one_to_one_connector(pre, post, conn, w, d, tgt, params, lbl, stdp=None)
-        elif cname.startswith('AllToAll'):
-            return self.all_to_all_connector(pre, post, conn, w, d, tgt, params, lbl, stdp=None)
-        elif cname.startswith('FixedProbability'):
-            return self.stats_connector(pre, post, conn, w, d, tgt, params, lbl, stdp=None)
-        else:
-            raise Exception("unsupported connection for splitting")
-            # return None
-
-
-    def stats_connector(self, pre, post, conn, w, d, tgt, params, lbl, stdp=None):
-        pynnal = self.pynnal
-        return pynnal.Proj(pre['pop'], post['pop'], conn, w, d,
-                target=tgt, stdp=stdp, label=lbl, conn_params=params)
-
-    def one_to_one_connector(self, pre, post, conn, w, d, tgt, params, lbl, stdp=None):
-        pynnal = self.pynnal
-        if pre['ids'][0] != post['ids'][0] or pre['ids'][-1] != post['ids'][-1]:
-            return None
-
-        return pynnal.Proj(pre['pop'], post['pop'], conn, w, d, 
-                target=tgt, stdp=stdp, label=lbl, conn_params=params)
-
-    def all_to_all_connector(self, pre, post, conn, w, d, tgt, params, lbl, stdp=None):
-        return self.stats_connector(pre, post, conn, w, d, tgt, params, lbl, stdp)
-
-    def from_list_connector(self, pre, post, conn, w, d, tgt, params, lbl, stdp=None):
-        pynnal = self.pynnal
-        clist = params['conn_list']
-        if isinstance(clist, list):
-            clist = np.array(clist)
-
-        whr = np.where(np.intersect1d(
-                np.intersect1d(clist[:, 0], pre['ids'])[0],
-                np.intersect1d(clist[:, 1], post['ids'])[0]))[0]
-        cp = {'conn_list': clist[whr,:]}
-
-        return pynnal.Proj(pre['pop'], post['pop'], conn, w[whr], d[whr], 
-                target=tgt, stdp=stdp, label=lbl, conn_params=cp)
-
-    def getWeights(self, format='array'):
-        pynnal = self.pynnal
-        mtx = np.ones((self.source.size, self.destination.size)) * np.inf
-        for row in self._projections:
-            for part in row:
-                pre_ids = part['ids']['pre']
-                r0, rN = pre_ids[0], pre_ids[-1]
-                post_ids = part['ids']['post']
-                c0, cN = post_ids[0], post_ids[-1]
-                weights = pynnal.getWeights(part['proj'], format=format)
-                mtx[r0:rN, c0:cN] = weights
-        return mtx
-
-
 class PyNNAL(object):
     """
     A PyNN Abstraction Layer (yet another?) used to reduce the times
     we may need to adjust our scripts to run in different versions of PyNN.
     Required mainly due to different PyNN implementations lagging or moving ahead.
     """
-    def __init__(self, simulator):
+    def __init__(self, simulator, max_subpop_size=np.inf):
         if isinstance(simulator, str) or type(simulator) == type(u''):
             simulator = backend_setup(simulator)
 
         self._sim = simulator
         sim_name = simulator.__name__
-        self._max_subpop_size = np.inf
+        self._max_subpop_size = max_subpop_size
         self._wafer = None
         if GENN in sim_name:
             self._sim_name = GENN
@@ -247,14 +58,31 @@ class PyNNAL(object):
         except:
             pass
 
+    def NumpyRNG(self, seed=None):
+        try:
+            rng = self._sim.NumpyRNG(seed=seed)
+        except Exception as inst:
+            rng = self._sim.random.NumpyRNG(seed=seed)
+        # finally:
+        #     raise Exception("Can't find the NumpyRNG class!")
+
+        return rng
+
     @property
     def sim(self):
         return self._sim
-    
+
+    @sim.setter
+    def sim(self, v):
+        self._sim = v
+
     @property
     def sim_name(self):
         return self._sim_name
 
+    @sim_name.setter
+    def sim_name(self, v):
+        self._sim_name = v
 
     def setup(self, timestep=1.0, min_delay=1.0, per_sim_params={}, **kwargs):
         setup_args = {'timestep': timestep, 'min_delay': min_delay}
@@ -317,6 +145,10 @@ class PyNNAL(object):
                 self._sim.run(duration)
         else:
             if self._first_run:
+                '''REMOVE THIS!!! just for testing!!!'''
+                self._wafer = WAL(wafer_id=33) #TODO: REMEMBER TO DELETE THIS!!!!
+                self._do_BSS_placement() #TODO: REMEMBER TO DELETE THIS!!!!
+
                 self._first_run = False
             self._sim.run(duration)
     
@@ -352,21 +184,18 @@ class PyNNAL(object):
             cell_class = self._get_obj(cell_class)
         else:
             txt_class = cell_class.__name__
-            # cname = cell_class
-        # else:
-            # cname = cell_class.__name__
-        # is_source_pop = cname.startswith('SpikeSource')
+
+        is_source_pop = txt_class.startswith('SpikeSource')
         
         sim = self.sim
         
-        if size <= max_sub_size:# or is_source_pop:
+        if size <= max_sub_size or is_source_pop:
             if self._ver() == 7:
                 pop = sim.Population(size, cell_class, params, label=label)
             else:
                 pop = sim.Population(size, cell_class(**params), label=label)
 
-            is_source = 'SpikeSource' in txt_class
-            self._graph.add(pop, is_source)
+            self._graph.add(pop, is_source_pop)
 
             return pop
         else:
@@ -385,11 +214,11 @@ class PyNNAL(object):
              target='excitatory', stdp=None, label=None, conn_params={}):
 
         if isinstance(source_pop, SplitPopulation) or \
-            isinstance(source_pop, SplitPopulation):
+            isinstance(dest_pop, SplitPopulation):
             ### first argument is this PYNNAL instance, needed to loop back here!
             ### a bit spaghetti but it's less code :p
             return SplitProjection(self, source_pop, dest_pop, conn_class, weights, delays,
-             target=target, stdp=None, label=None, conn_params={})
+             target=target, stdp=stdp, label=label, conn_params=conn_params)
             
         if type(conn_class) == type(u''): #convert from text representation to object
             conn_class = self._get_obj(conn_class)
@@ -519,5 +348,6 @@ class PyNNAL(object):
 
 
     def _do_BSS_placement(self):
-        self.placer = WaferPlacer(self._graph, self._wafer)
-        self.placer._place()
+        placer = WaferPlacer(self._graph, self._wafer)
+        placer._place()
+        self._graph.update_places(placer.places)

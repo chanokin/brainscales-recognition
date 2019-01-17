@@ -4,7 +4,7 @@ from __future__ import (print_function,
 from builtins import str, open, range, dict
 
 import numpy as np
-
+import copy
 from .wafer_blacklists import BLACKLISTS
 
 
@@ -73,8 +73,22 @@ class Wafer(object):
     _reticle_row_x_starts = WAFER_RETICLE_ROW_X_STARTS
 
     def __init__(self, wafer_id=33):
+        self._id = wafer_id
         self._used_chips = [{} for _ in range(self._height)]
-        self._blacklist = BLACKLISTS[wafer_id]
+        self._blacklist = BLACKLISTS[self._id]
+
+    def available(self):
+        ids = []
+        coords = []
+        for row in range(self._height):
+            for col in sorted(self._row_coords[row]):
+                id = self._row_coords['c2i'][row][col]
+                if id not in self._used_chips[row] and \
+                    id not in self._blacklist[row]:
+                    ids.append(id)
+                    coords.append((row, col))
+
+        return ids, coords
 
     def _in_range(self, chip_id, id_range):
         return (id_range[0] <= chip_id < id_range[1])
@@ -154,17 +168,16 @@ class Wafer(object):
         print('Render saved to {}'.format(os.path.join(os.getcwd(), 'wafer_render.pdf')))
 
 
-class WaferPlacer(object):
-    def __init__(self, graph, wafer, constraints={}):
-        self._graph = graph
-        self._wafer = wafer
-        self._constraints = constraints
+    def clone(self):
+        wfr = Wafer(self._id)
+        wfr._used_chips[:] = [copy.copy(used) for used in self._used_chips]
+        return wfr
 
-        self._set_constraints()
-        self._place()
+    def i2c(self, i):
+        return self._row_coords['i2c'][i]
 
-    def _set_constraints(self):
-        pass
+    def c2i(self, r, c):
+        return self._row_coords['c2i'][r][c]
 
-    def _place(self):
-        pass
+    def c2i(self, coord):
+        return self.c2i(coord[0], coord[1])
