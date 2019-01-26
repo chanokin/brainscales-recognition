@@ -12,6 +12,7 @@ class Node(object):
         self.id = id
         self.is_source = is_source
         self.place = np.zeros(2, dtype='uint8')
+        self.place_id = -1
         self.outputs = {}
 
     def dist2(self, node):
@@ -73,12 +74,14 @@ class Graph(object):
 
         return new_graph
 
-    def evaluate(self):
+    def evaluate(self, distances, mapping):
         dist2 = 0.0
         for src in self.nodes:
             targets = self.nodes[src].outputs
             for tgt in targets:
-                dist2 += self.nodes[src].dist2(targets[tgt])
+                idx_src = mapping[self.nodes[src].place_id]
+                idx_tgt = mapping[self.nodes[tgt].place_id]
+                dist2 += distances[idx_src, idx_tgt]
 
         return dist2
 

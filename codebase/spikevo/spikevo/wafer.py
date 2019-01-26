@@ -5,6 +5,7 @@ from builtins import str, open, range, dict
 
 import numpy as np
 import copy
+import os
 from .wafer_blacklists import BLACKLISTS
 
 
@@ -76,6 +77,37 @@ class Wafer(object):
         self._id = wafer_id
         self._used_chips = [{} for _ in range(self._height)]
         self._blacklist = BLACKLISTS[self._id]
+        self._get_distances()
+
+    def _get_distances(self):
+        cwd = os.path.dirname( os.path.realpath(__file__) )
+        dist_file = os.path.join(cwd, 'wafer_distance_cache.npz')
+        # if os.path.isfile(dist_file):
+        #     # print(np.load(dist_file).keys())
+        #     loaded = np.load(dist_file)
+        #     self.distances = loaded['distances']
+        #     self.id2idx = loaded['id2idx'].item()
+        #     return
+
+        id2idx = {}
+        ids, coords = self.available()
+        n_avail = len(ids)
+        distances = np.zeros((n_avail, n_avail))
+        for i in range(n_avail):
+            id2idx[ids[i]] = i
+            for j in range(n_avail):
+                if i == j:
+                    distances[i, j] = 1000.0 #big number to avoid NaN later
+                else:
+                    ri, ci = coords[i]
+                    rj, cj = coords[j]
+                    distances[i, j] = np.sqrt((ri - rj)**2 + (ci - cj)**2)
+
+        np.savez_compressed(dist_file,
+            distances=distances, id2idx=id2idx)
+        self.distances = distances
+        self.id2idx = id2idx
+
 
     def available(self):
         ids = []

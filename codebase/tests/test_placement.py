@@ -24,7 +24,7 @@ pynn = backend_setup(backend)
 
 print(pynn.__name__)
 
-pynnx = PyNNAL(pynn, max_subpop_size=np.inf)
+pynnx = PyNNAL(pynn, max_subpop_size=2)
 
 N_NEURONS = 10
 w = 0.02
@@ -88,37 +88,5 @@ proj3 = pynnx.Proj(inputs1, output, pynn.FixedProbabilityConnector,
 #                   weights=w, delays=syn_delay)
 
 
-pops = ['neurons', 'outputs']
-sources = ['poisson', 'poisson new']
-targets = {'neurons': ['outputs'],
-           'poisson': ['neurons', 'outputs'],
-           'poisson new': ['outputs']
-           }
-
-
-
-graph = pynnx._graph.clone()
-
-all_pops_in = True
-for p in pops:
-    all_pops_in &= (p in graph.nodes)
-
-assert all_pops_in, "missing standard population in the graph"
-
-all_sources_in = True
-for s in sources:
-    all_sources_in &= (s in graph.sources)
-
-assert all_sources_in, "missing source population in the graph"
-
-all_conns_in = True
-for pre in targets:
-    for post in targets[pre]:
-        if pre in graph.nodes:
-            all_conns_in &= (post in graph.nodes[pre].outputs)
-        else:
-            all_conns_in &= (post in graph.sources[pre].outputs)
-
-assert all_conns_in, "missing connections in the graph"
 
 pynnx.run(100)
