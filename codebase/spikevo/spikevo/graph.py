@@ -8,19 +8,25 @@ import numpy as np
 import copy
 
 class Node(object):
-    def __init__(self, id, is_source=False):
+    def __init__(self, id, is_source=False, depth=0):
         self.id = id
         self.is_source = is_source
         self.place = np.zeros(2, dtype='uint8')
         self.place_id = -1
         self.outputs = {}
+        self.sub_link = {}
+        self.parent = None
+        self.depth = depth
+
 
     def dist2(self, node):
         return np.dot(self.place, node.place)
 
     def connect_to(self, node):
         self.outputs[node.id] = node
-
+        node.parent = self
+        if node.depth < (self.depth + 1):
+            node.depth = self.depth + 1
 
 class Graph(object):
     def __init__(self):
@@ -28,6 +34,8 @@ class Graph(object):
         self.sources = {}
         self.inverse_sources = {}
         self.pops = {}
+        self.width = 0
+        self.height = 0
 
     def add(self, pop, is_source):
         id = pop.label
@@ -43,7 +51,7 @@ class Graph(object):
         self.pops[id] = pop
 
         if is_source:
-            self.sources[id] = Node(id, is_source=is_source)
+            self.sources[id] = Node(id, is_source=is_source, depth=0)
         else:
             self.nodes[id] = Node(id, is_source=is_source)
 
@@ -64,6 +72,9 @@ class Graph(object):
             raise Exception("Source population {} has not been registered\n\nNodes: {}\n\nSources: {}".\
                         format(source_pop.label, self.nodes.keys(), self.sources.keys()))
 
+        if self.height < self.nodes[sink_pop.label].depth:
+            self.height = self.nodes[sink_pop.label].depth
+
 
 
     def clone(self):
@@ -71,11 +82,14 @@ class Graph(object):
         new_graph.nodes = copy.deepcopy(self.nodes)
         new_graph.sources = copy.deepcopy(self.sources)
         new_graph.pops = self.pops
+        new_graph.width = self.width
+        new_graph.height = self.height
 
         return new_graph
 
-    def evaluate(self, distances, mapping):
+    def evaluate(self, distances, mapping, subpop_weight=1.0):
         dist2 = 0.0
+        subdist = 0.0
         for src in self.nodes:
             targets = self.nodes[src].outputs
             for tgt in targets:
@@ -83,8 +97,20 @@ class Graph(object):
                 idx_tgt = mapping[self.nodes[tgt].place_id]
                 dist2 += distances[idx_src, idx_tgt]
 
-        return dist2
+            targets = self.nodes[src].sub_link
+            for tgt in targets:
+                idx_src = mapping[self.nodes[src].place_id]
+                idx_tgt = mapping[self.nodes[tgt].place_id]
+                subdist += distances[idx_src, idx_tgt]
+
+
+        return dist2 + (subdist * subpop_weight)
 
     def update_places(self, places):
         for _id in sorted(places):
             self.nodes[_id].place[:] = places[_id]
+
+
+    def link_subpop(self, label0, label1):
+
+        self.nodes[label0].sub_link[label1] = self.nodes[label1]

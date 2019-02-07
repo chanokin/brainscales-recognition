@@ -54,26 +54,26 @@ class WaferPlacer(object):
             nind2 = ind2.copy()
             nind1[cxpoint1:cxpoint2], nind2[cxpoint1:cxpoint2] \
                 = ind2[cxpoint1:cxpoint2].copy(), ind1[cxpoint1:cxpoint2].copy()
+
             # u1, c1 = np.unique(nind1, return_counts=True)
             # if len(u1) != len(nind1):
             #     for i, c in enumerate(c1):
             #         if c > 1:
             #             whr = np.where(nind1 == c)
             #             for j, w in enumerate(whr):
-            #                 if j == 0:
-            #                     continue
-            #                 nind1[w] += nind1[whr[]
-            #     # print(ind1)
-            #     # print(nind1)
-            #     # print(u1)
-            #     # print(i1)
+            #                 nind1[w] += j
+            #     print(ind1, nind1, ind2, nind2)
+
             ind1[:] = nind1
             ind2[:] = nind2
             return ind1, ind2
 
-        clean_ids, clean_coords = self._wafer.available()
-        # print(clean_ids)
-        # print(clean_coords)
+        width = self._graph.width
+        height = self._graph.height
+
+        clean_ids, clean_coords = self._wafer.available(width, height)
+        print(clean_ids)
+        print(clean_coords)
         creator.create("FitnessMin", base.Fitness, weights=(-1.0, -1000.0))
         creator.create("Individual", np.ndarray, fitness=creator.FitnessMin)
         IND_SIZE = len(self._graph.nodes)

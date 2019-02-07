@@ -8,6 +8,21 @@ import copy
 import os
 from .wafer_blacklists import BLACKLISTS
 
+def flip_coords(row_coords):
+    coords = {}
+    for row in row_coords:
+        if isinstance(row, str):
+            continue
+
+        for col in row_coords[row]:
+            col_list = coords.get(col, [])
+            col_list.append(row)
+            coords[col] = col_list
+
+    for col in coords:
+        coords[col] = np.array(sorted(coords[col]))
+
+    return coords
 
 def compute_coords(row_widths, row_starts):
     coords = {}
@@ -46,13 +61,23 @@ def compute_row_ranges(row_widths):
     return tuple(map(tuple, ranges))
 
 
+WAFER_COL_HEIGHTS = np.array([4, 4, 4, 4, 8, 8, 8, 8, 12, 12, 12, 12, 16, 16, 16, 16,
+                      16, 16, 16, 16, 16, 16, 16, 16, 12, 12, 12, 12, 8, 8, 8, 8, 4, 4, 4, 4])
+WAFER_COL_HEIGHTS.flags.writeable = False
+WAFER_MIN_HEIGHT = 4
 WAFER_ROW_WIDTHS = np.array([12, 12, 20, 20, 28, 28, 36, 36, 36, 36, 28, 28, 20, 20, 12, 12])
 WAFER_ROW_WIDTHS.flags.writeable = False
+WAFER_MIN_WIDTH = 12
 WAFER_ROW_X_STARTS = np.array([12, 12, 8, 8, 4, 4, 0, 0, 0, 0, 4, 4, 8, 8, 12, 12])
 WAFER_ROW_X_STARTS.flags.writeable = False
+WAFER_COL_Y_STARTS = np.array([6, 6, 6, 6, 4, 4, 4, 4, 2, 2, 2, 2, 0, 0, 0, 0,
+                       0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 2, 2, 4, 4, 4, 4, 6, 6, 6, 6])
+WAFER_COL_Y_STARTS.flags.writeable = False
 WAFER_ROW_ID_STARTS = compute_row_id_starts(WAFER_ROW_WIDTHS)
 WAFER_ROW_RANGES = compute_row_ranges(WAFER_ROW_WIDTHS)
 WAFER_ROW_COORDS = compute_coords(WAFER_ROW_WIDTHS, WAFER_ROW_X_STARTS)
+WAFER_COL_COORDS = flip_coords(WAFER_ROW_COORDS)
+
 
 WAFER_CHIPS_PER_RETICLE = 8
 WAFER_CHIPS_SHAPE = (2, 4)
@@ -63,11 +88,16 @@ WAFER_RETICLE_ROW_X_STARTS.flags.writeable = False
 
 
 class Wafer(object):
+    _col_heights = WAFER_COL_HEIGHTS
+    _min_height = WAFER_MIN_HEIGHT
     _row_widths = WAFER_ROW_WIDTHS
+    _min_width = WAFER_MIN_WIDTH
     _row_x_starts = WAFER_ROW_X_STARTS
+    _col_y_starts = WAFER_COL_Y_STARTS
     _row_id_starts = WAFER_ROW_ID_STARTS
     _row_ranges = WAFER_ROW_RANGES
     _row_coords = WAFER_ROW_COORDS
+    _col_coords = WAFER_COL_COORDS
     _width = 36  ### max(row_widths)
     _height = 16  ### rows per wafer
     _reticle_row_widths = WAFER_RETICLE_ROW_WIDTHS
@@ -109,16 +139,50 @@ class Wafer(object):
         self.id2idx = id2idx
 
 
-    def available(self):
+    def available(self, width=None, height=None, max_id=np.inf):
+        if width is None or height is None:
+            max_size = self._height
+            orientation = 'vertical'
+        else:
+            max_size = (width if width > height else height) + 1
+            try:
+                col_idx = np.where(max_size > self._col_heights)[0][0]
+            except:
+                col_idx = np.inf
+            try:
+                row_idx = np.where(max_size > self._row_widths)[0][0]
+            except:
+                row_idx = np.inf
+            orientation = 'vertical' if row_idx > col_idx else 'horizontal'
+
         ids = []
         coords = []
-        for row in range(self._height):
-            for col in sorted(self._row_coords[row]):
-                id = self._row_coords['c2i'][row][col]
-                if id not in self._used_chips[row] and \
-                    id not in self._blacklist[row]:
-                    ids.append(id)
-                    coords.append((row, col))
+        if orientation == 'vertical':
+            for row in range(max_size):
+                mask = np.where(self._row_coords[row] <= (self._col_y_starts[row] + max_size))
+                indices = sorted(self._row_coords[row][mask])
+                for col in indices:
+                    id = self._row_coords['c2i'][row][col]
+                    if id > max_id:
+                        continue
+
+                    if id not in self._used_chips[row] and \
+                        id not in self._blacklist[row]:
+                        ids.append(id)
+                        coords.append((row, col))
+        else:
+            for col in range(max_size):
+                mask = np.where(self._col_coords[col] <= (self._row_x_starts[row] + max_size))
+                indices = sorted(self._col_coords[col][mask])
+                for row in indices:
+                    id = self._row_coords['c2i'][row][col]
+                    if id > max_id:
+                        continue
+
+                    if id not in self._used_chips[row] and \
+                            id not in self._blacklist[row]:
+                        ids.append(id)
+                        coords.append((row, col))
 
         return ids, coords
 
