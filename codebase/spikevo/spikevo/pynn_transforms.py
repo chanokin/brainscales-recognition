@@ -196,9 +196,14 @@ class PyNNAL(object):
                 pop = sim.Population(size, cell_class(**params), label=label)
 
             self._graph.add(pop, is_source_pop)
+            if self._graph.width < 1:
+                self._graph.width = 1
 
             return pop
         else:
+            width = calc_n_part(size, max_sub_size)
+            if self._graph.width < width:
+                self._graph.width = width
             ### first argument is this PYNNAL instance, needed to loop back here!
             ### a bit spaghetti but it's less code :p
             return SplitPopulation(self, size, cell_class, params, label, shape,
