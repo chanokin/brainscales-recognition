@@ -19,6 +19,7 @@ class Node(object):
         self.depth = depth
 
 
+
     def dist2(self, node):
         return np.dot(self.place, node.place)
 
@@ -36,6 +37,7 @@ class Graph(object):
         self.pops = {}
         self.width = 0
         self.height = 0
+        self.link_count = 0
 
     def add(self, pop, is_source):
         id = pop.label
@@ -75,7 +77,7 @@ class Graph(object):
         if self.height < self.nodes[sink_pop.label].depth:
             self.height = self.nodes[sink_pop.label].depth
 
-
+        self.link_count += 1
 
     def clone(self):
         new_graph = Graph()
@@ -93,18 +95,18 @@ class Graph(object):
         for src in self.nodes:
             targets = self.nodes[src].outputs
             for tgt in targets:
-                idx_src = mapping[self.nodes[src].place_id]
-                idx_tgt = mapping[self.nodes[tgt].place_id]
-                dist2 += distances[idx_src, idx_tgt]
+                idx_src = self.nodes[src].place_id
+                idx_tgt = self.nodes[tgt].place_id
+                dist2 += distances[idx_src][idx_tgt]
 
             targets = self.nodes[src].sub_link
             for tgt in targets:
-                idx_src = mapping[self.nodes[src].place_id]
-                idx_tgt = mapping[self.nodes[tgt].place_id]
-                subdist += distances[idx_src, idx_tgt]
+                idx_src = self.nodes[src].place_id
+                idx_tgt = self.nodes[tgt].place_id
+                subdist += distances[idx_src][idx_tgt]
 
 
-        return dist2 + (subdist * subpop_weight)
+        return dist2, (subdist * subpop_weight)
 
     def update_places(self, places):
         for _id in sorted(places):
@@ -112,5 +114,4 @@ class Graph(object):
 
 
     def link_subpop(self, label0, label1):
-
         self.nodes[label0].sub_link[label1] = self.nodes[label1]
