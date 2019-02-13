@@ -32,6 +32,7 @@ class Node(object):
 class Graph(object):
     def __init__(self):
         self.nodes = {}
+        self.edges = {}
         self.sources = {}
         self.inverse_sources = {}
         self.pops = {}
@@ -59,12 +60,15 @@ class Graph(object):
 
         return id
 
-    def plug(self, source_pop, sink_pop):
+    def plug(self, source_pop, sink_pop, w=1):
         if sink_pop.label not in self.nodes:
             raise Exception("Sink population {} has not been registered".format(sink_pop.label))
 
         elif source_pop.label in self.nodes:
             self.nodes[source_pop.label].connect_to(self.nodes[sink_pop.label])
+            edge_dict = self.edges.get(source_pop.label, dict())
+            edge_dict[sink_pop.label] = w
+            self.edges[source_pop.label] = edge_dict
 
         elif source_pop.label in self.sources:
             self.inverse_sources[sink_pop.label] = source_pop.label

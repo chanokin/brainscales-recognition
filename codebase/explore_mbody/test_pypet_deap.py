@@ -170,7 +170,7 @@ def main():
     ### we need at least 2?
     traj.f_add_parameter('ind_len', 2, comment='Length of individual')
 
-    traj.f_add_parameter('indpb', 0.05, comment='Mutation parameter')
+    traj.f_add_parameter('indpb', 0.005, comment='Mutation parameter')
     traj.f_add_parameter('tournsize', 3, comment='Selection parameter')
 
     traj.f_add_parameter('seed', 42, comment='Seed for RNG')

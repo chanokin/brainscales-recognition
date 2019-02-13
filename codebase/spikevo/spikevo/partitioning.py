@@ -67,7 +67,6 @@ class SplitPopulation(object):
             pops = []
             count = 0
             template = " - sub %%0%dd" % int(np.ceil(self.n_sub_pops/10.0)+1)
-
             for i in range(self.n_sub_pops):
                 size = min(self.max_sub_size, self.size - count)
                 ids = np.arange(count, count + size)
@@ -78,10 +77,16 @@ class SplitPopulation(object):
                     'pop': self.pynnal.Pop(size, self.cell_class, self.params, label),
                     'label': label,
                 })
-
-                if i > 1:
+                if i > 0:
                     self.pynnal._graph.link_subpop(pops[i - 1]['label'], pops[i]['label'])
+                    self.pynnal._graph.link_subpop(pops[i]['label'], pops[i - 1]['label'])
+                if i > 1:
                     self.pynnal._graph.link_subpop(pops[i - 2]['label'], pops[i]['label'])
+                    self.pynnal._graph.link_subpop(pops[i]['label'], pops[i - 2]['label'])
+
+                # if i > 2:
+                #     self.pynnal._graph.link_subpop(pops[i - 3]['label'], pops[i]['label'])
+
         ### TODO: deal with 2D, 3D!
         self._populations = pops
 
