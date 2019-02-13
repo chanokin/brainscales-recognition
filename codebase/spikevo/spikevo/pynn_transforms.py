@@ -146,8 +146,8 @@ class PyNNAL(object):
         else:
             if self._first_run:
                 '''REMOVE THIS!!! just for testing!!!'''
-                self._wafer = WAL(wafer_id=33) #TODO: REMEMBER TO DELETE THIS!!!!
-                self._do_BSS_placement() #TODO: REMEMBER TO DELETE THIS!!!!
+                # self._wafer = WAL(wafer_id=33) #TODO: REMEMBER TO DELETE THIS!!!!
+                # self._do_BSS_placement() #TODO: REMEMBER TO DELETE THIS!!!!
 
                 self._first_run = False
             self._sim.run(duration)

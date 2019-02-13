@@ -104,9 +104,17 @@ class Wafer(object):
 
     def __init__(self, wafer_id=33):
         self._id = wafer_id
+        self._avail_ids = None
         self._used_chips = [{} for _ in range(self._height)]
         self._blacklist = BLACKLISTS[self._id]
         self._get_distances()
+
+    def __iter__(self):
+        if self._avail_ids is None:
+            yield None
+        else:
+            for i in range(len(self._avail_ids)):
+                yield i
 
     def _get_distances(self):
         cwd = os.path.dirname( os.path.realpath(__file__) )
@@ -132,8 +140,8 @@ class Wafer(object):
                     dists[j] = 10.0**3 #big number to avoid NaN later
                 else:
                     rj, cj = coords[j]
-                    # dists[j] = np.sqrt((ri - rj)**2 + (ci - cj)**2)
-                    dists[j] = np.abs(ri - rj) + np.abs(ci - cj)
+                    dists[j] = np.sqrt((ri - rj)**2 + (ci - cj)**2)
+                    # dists[j] = np.abs(ri - rj) + np.abs(ci - cj)
             distances[i] = dists
         np.savez_compressed(dist_file, distances=distances, id2idx=id2idx)
         self.distances = distances
@@ -148,20 +156,28 @@ class Wafer(object):
             start_y = 0
             start_x = 0
         else:
-            max_size = (width if width > height else height) + 1
-            start_x = self._row_x_starts[0]
-            start_y = self._col_y_starts[0]
-            try:
-                col_idx = np.where(max_size > self._col_heights)[0][0]
-            except:
-                col_idx = np.inf
-            try:
-                row_idx = np.where(max_size > self._row_widths)[0][0]
-            except:
-                row_idx = np.inf
-            orientation = 'vertical' if row_idx > col_idx else 'horizontal'
-            max_rows = max_size
-            max_cols = max_size
+            max_size = (width if width > height else height)
+            if max_size >= self._height or max_size >= self._width:
+                max_rows = self._height
+                max_cols = self._width
+                orientation = 'vertical'
+                start_y = 0
+                start_x = 0
+            else:
+
+                start_x = self._row_x_starts[0]
+                start_y = self._col_y_starts[0]
+                try:
+                    col_idx = np.where(max_size > self._col_heights)[0][0]
+                except:
+                    col_idx = np.inf
+                try:
+                    row_idx = np.where(max_size > self._row_widths)[0][0]
+                except:
+                    row_idx = np.inf
+                orientation = 'vertical' if row_idx > col_idx else 'horizontal'
+                max_rows = max_size
+                max_cols = max_size
 
         ids = []
         coords = {}
@@ -195,7 +211,7 @@ class Wafer(object):
                             id not in self._blacklist[row]:
                         ids.append(id)
                         coords[id] = (row, col)
-
+        self._avail_ids = ids
         return ids, coords
 
     def _in_range(self, chip_id, id_range):
