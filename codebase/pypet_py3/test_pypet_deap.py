@@ -32,6 +32,8 @@ def eval_one_min(trajectory):
     #     pprint(dp)
 
     weight = trajectory.derived_parameters.individual[0]
+    pprint("process for weight = %s"%weight)
+
     e_rev = 50
     neuron_parameters = {
     'cm': 0.2,
@@ -76,46 +78,25 @@ def eval_one_min(trajectory):
     
     pynn_server = Pyro4.Proxy("PYRONAME:spikevo.pynn_server")
 
+    individual = trajectory.parameters.ind_idx
+    generation = trajectory.parameters.generation
     strw = '{}'.format(weight).replace('.', 'p')
-
+    name = 'pyro_pynn_g{}_i{}_w{}'.format(generation, individual, strw)
     per_sim_params = {}
     if SIM_NAME == 'genn':
-        per_sim_params['model_name'] = 'pyro_pynn_{}'.format(strw)
+        per_sim_params['model_name'] = name
         per_sim_params['use_cpu'] = True
-        per_sim_params['MPI_ENABLE'] = True
-        per_sim_params['num_processors'] = 2
+        # per_sim_params['MPI_ENABLE'] = True
+        # per_sim_params['num_processors'] = 2
 
-    pynn_server.set_net(SIM_NAME, description, per_sim_params=per_sim_params)
-        
-    print('\n\n---------------------------------------\n')
-    print('after set_net ({})'.format(strw))
-    print('\n---------------------------------------\n')
+    recs = pynn_server.full_run(trajectory.simulation.duration,
+                SIM_NAME, description, multiprocessor=True,
+                label=name, per_sim_params=per_sim_params)
 
-    pynn_server.run(trajectory.simulation.duration)
-
-    print('\n\n---------------------------------------\n')
-    print('after run ({})'.format(strw))
-    print('\n---------------------------------------\n')
-    
-    recs = pynn_server.get_records()
-    print('\n\n---------------------------------------\n')
-    print('after get_records ({})'.format(strw))
-    print('\n---------------------------------------\n')
-    # print(recs)
-
-    pynn_server.end()
-    print('\n\n---------------------------------------\n')
-    print('after end ({})'.format(strw))
-    print('\n---------------------------------------\n')
-    
     spike_count = len(recs['destination']['spikes'][0])
 
     trajectory.f_add_result('activity.$', n_spikes=spike_count)
 
-    print('\n\n---------------------------------------\n')
-    print('after add result ({})'.format(strw))
-    print('\n---------------------------------------\n')
-    
     ### one spike makes spike_count - 1 == 0
     ### want the minimum weight, so we add it to fitness
     return (abs(spike_count - 1) + weight, )
@@ -131,7 +112,7 @@ def eval_one_min(trajectory):
 def main():
     ### setup an experimental environment
     multiproc = True
-    n_procs = 2
+    n_procs = 8
     env = Environment(trajectory='WeightToSpike',
                       comment='Experiment to see which is the minimum weight'
                             'is required by a neuron to spike',
@@ -158,10 +139,10 @@ def main():
     traj = env.trajectory
 
     ### genetic algorithm parameters
-    traj.f_add_parameter('popsize', 2, comment='Population size')
+    traj.f_add_parameter('popsize', 50, comment='Population size')
     traj.f_add_parameter('CXPB', 0.5, comment='Crossover term')
     traj.f_add_parameter('MUTPB', 0.2, comment='Mutation probability')
-    traj.f_add_parameter('NGEN', 1, comment='Number of generations')
+    traj.f_add_parameter('NGEN', 100, comment='Number of generations')
 
     traj.f_add_parameter('generation', 0, comment='Current generation')
     traj.f_add_parameter('ind_idx', 0, comment='Index of individual')

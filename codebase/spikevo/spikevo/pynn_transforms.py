@@ -315,6 +315,15 @@ class PyNNAL(object):
 
     def get_weights(self, proj, format='array'):
         ### NOTE: screw the non-array representation!!! Who thought that was a good idea?
+
+        ###
+        if self._sim_name == GENN:
+            ### TODO: we want to return arrays here! Currently, it's just not possible.
+            print("\n\nTrying to get weights for GeNN\n\n")
+            weights = proj.get('weight', format='list', with_address=False)
+            print("\n\nAFTER --- Trying to get weights for GeNN\n\n")
+            return np.array(weights)
+
         format = 'array'
         return np.array(proj.getWeights(format=format))
 
