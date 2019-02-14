@@ -191,7 +191,7 @@ stdp = {
             # 'w_min': (static_w['KC to DN'])/10.0,
             'w_min': 0.0,
             'w_max': (static_w['KC to DN']),
-            'A_plus': 0.00001, 'A_minus': 0.00005
+            'A_plus': 0.01, 'A_minus': 0.05
         },
     }
 }
@@ -261,10 +261,10 @@ sys.stdout.write('Getting weights:\n')
 sys.stdout.flush()
 sys.stdout.write('\tKenyon\n')
 sys.stdout.flush()
-try:
-    final_weights = pynnx.get_weights(projections['KC to DN'])
-except:
-    final_weights = None
+# try:
+final_weights = pynnx.get_weights(projections['KC to DN'])
+# except:
+#     final_weights = None
 sys.stdout.write('Done!\t Getting weights\n\n')
 sys.stdout.flush()
 
