@@ -11,7 +11,7 @@ from spikevo.pynn_transforms import PyNNAL
 import argparse
 from pprint import pprint
 from args_setup import get_args
-from input_utils import *
+from utils import *
 
 parser = argparse.ArgumentParser()
 parser.add_argument('dc', type=float, help='DC current offset' )

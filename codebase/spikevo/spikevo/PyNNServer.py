@@ -19,9 +19,9 @@ class NeuralNetworkServer(object):
         self._queues = {}
 
     def full_run(self, run_time, simulator_name, description, multiprocessor=False, label=None,
-                timestep=1.0, min_delay=1.0, per_sim_params={}, recordings=None):
+                timestep=1.0, min_delay=1.0, per_sim_params={}, recordings=None, weights=None):
         def fr(queue, run_time, simulator_name, description, multiprocessor, label,
-               timestep, min_delay, per_sim_params, recordings):
+               timestep, min_delay, per_sim_params, recordings, weights):
             # sys.stderr.write("\n\nIn full_run.fr\n")
             # sys.stderr.flush()
 
@@ -30,16 +30,24 @@ class NeuralNetworkServer(object):
                            min_delay, per_sim_params)
             decoder.run(run_time, recordings, label)
             recs = decoder.get_records(label)
+            end_weights = {}
+            if weights is not None:
+                for source, target in weights:
+                    w_dict = end_weights.get(source, {})
+                    w_dict[target] = (decoder.get_weights(decoder.projections[source][target])).tolist()
+                    end_weights[source] = w_dict
+
             decoder.end(label)
-            queue.put(recs)
+            queue.put({'recordings': recs, 'weights': end_weights})
 
         queue = Queue()
         args = (queue, run_time, simulator_name, description, multiprocessor,
-                label, timestep, min_delay, per_sim_params, recordings)
+                label, timestep, min_delay, per_sim_params, recordings, weights)
         proc = Process(target=fr, args=args)
         proc.start()
         data = queue.get()
         self._processes[label] = proc
+
         return data
 
     def __del__(self):
@@ -142,8 +150,8 @@ class NeuralNetworkDecoder(object):
                 _source = self.populations[sim_label][src]
                 _dest = self.populations[sim_label][dst]
                 _conn = proj_desc[src][dst]['conn']
-                _w = proj_desc[src][dst]['weights']
-                _d = proj_desc[src][dst]['delays'] 
+                _w = proj_desc[src][dst].get('weights', None)
+                _d = proj_desc[src][dst].get('delays', None)
                 _tgt = proj_desc[src][dst].get('target', 'excitatory')
                 _stdp = proj_desc[src][dst].get('stdp', None)
                 _lbl = proj_desc[src][dst].get('label', '{} to {}'.format(src, dst))

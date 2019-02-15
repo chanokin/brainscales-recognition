@@ -213,6 +213,14 @@ class PyNNAL(object):
         _dep = self._get_obj(config['name'])
         return _dep(**config['params'])
 
+    def parse_conn_params(self, param):
+        if isinstance(param, dict):
+            dist = param['type']
+            dist_params = param['params']
+            rng = self._sim.NumpyRNG(param['seed'])
+            return self._sim.RandomDistribution(dist, dist_params, rng)
+        else:
+            return param
 
 
     def Proj(self, source_pop, dest_pop, conn_class, weights, delays, 
@@ -229,7 +237,11 @@ class PyNNAL(object):
             conn_class = self._get_obj(conn_class)
 
         sim = self.sim
-            
+
+        weights = self.parse_conn_params(weights)
+        delays = self.parse_conn_params(delays)
+
+
         if self._ver() == 7:
             """ Extract output population from NestImagePopulation """
             pre_pop = source_pop.out if isinstance(source_pop, NestImagePopulation)\
@@ -317,12 +329,12 @@ class PyNNAL(object):
         ### NOTE: screw the non-array representation!!! Who thought that was a good idea?
 
         ###
-        if self._sim_name == GENN:
-            ### TODO: we want to return arrays here! Currently, it's just not possible.
-            print("\n\nTrying to get weights for GeNN\n\n")
-            weights = proj.get('weight', format='list', with_address=False)
-            print("\n\nAFTER --- Trying to get weights for GeNN\n\n")
-            return np.array(weights)
+        # if self._sim_name == GENN:
+        #     ### TODO: we want to return arrays here! Currently, it's just not possible.
+        #     print("\n\nTrying to get weights for GeNN\n\n")
+        #     weights = proj.get('weight', format='list', with_address=False)
+        #     print("\n\nAFTER --- Trying to get weights for GeNN\n\n")
+        #     return np.array(weights)
 
         format = 'array'
         return np.array(proj.getWeights(format=format))
