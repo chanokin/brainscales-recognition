@@ -18,9 +18,9 @@ class NeuralNetworkServer(object):
         self._processes = {}
         self._queues = {}
 
-    def full_run(self, run_time, simulator_name, description, multiprocessor=False, label=None,
+    def full_run(self, run_spec, simulator_name, description, multiprocessor=False, label=None,
                 timestep=1.0, min_delay=1.0, per_sim_params={}, recordings=None, weights=None):
-        def fr(queue, run_time, simulator_name, description, multiprocessor, label,
+        def fr(queue, run_spec, simulator_name, description, multiprocessor, label,
                timestep, min_delay, per_sim_params, recordings, weights):
             # sys.stderr.write("\n\nIn full_run.fr\n")
             # sys.stderr.flush()
@@ -28,20 +28,33 @@ class NeuralNetworkServer(object):
             decoder = NeuralNetworkDecoder()
             decoder.set_net(simulator_name, description, multiprocessor, label, timestep,
                            min_delay, per_sim_params)
-            decoder.run(run_time, recordings, label)
-            recs = decoder.get_records(label)
-            end_weights = {}
-            if weights is not None:
-                for source, target in weights:
-                    w_dict = end_weights.get(source, {})
-                    w_dict[target] = (decoder.get_weights(decoder.projections[source][target])).tolist()
-                    end_weights[source] = w_dict
+            data = {}
+            for k in run_spec:
+                if 'settings' in run_spec[k]:
+                    pop = run_spec[k]['settings']['pop']
+                    for var in run_spec[k]['settings']['values']:
+                        value = run_spec[k]['settings']['values'][var]
+                        decoder.set_var(pop, var, value)
 
+                decoder.run(run_spec[k]['time'], recordings, label)
+                recs = decoder.get_records(label)
+                end_weights = {}
+                if weights is not None:
+                    for source, target in weights:
+                        w_dict = end_weights.get(source, {})
+                        w_dict[target] = (decoder.get_weights(decoder.projections[source][target])).tolist()
+                        end_weights[source] = w_dict
+
+                data[k] = {'recordings': recs, 'weights': end_weights}
+
+            queue.put()
             decoder.end(label)
-            queue.put({'recordings': recs, 'weights': end_weights})
+
+        if np.isscalar(run_spec):
+            run_spec = {0: {'time': run_spec}}
 
         queue = Queue()
-        args = (queue, run_time, simulator_name, description, multiprocessor,
+        args = (queue, run_spec, simulator_name, description, multiprocessor,
                 label, timestep, min_delay, per_sim_params, recordings, weights)
         proc = Process(target=fr, args=args)
         proc.start()
@@ -161,6 +174,10 @@ class NeuralNetworkDecoder(object):
                                     _conn, _w, _d, _tgt, _stdp, _lbl, _conn_p)
 
         self.projections[sim_label] = projs
+
+    def set_var(self, population, variable, value):
+        self.pynnx.set_pop_attr(self.populations[population],
+                                variable, value)
 
     def run(self, run_time, recordings=None, label=None):
         # sys.stderr.write("in run\n\n")
