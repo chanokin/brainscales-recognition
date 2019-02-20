@@ -3,9 +3,16 @@ from __future__ import (print_function,
                         division)
 from future.builtins import str, open, range, dict
 import numpy as np
-
+import sys
+import os
 def generate_input_vectors(num_vectors, dimension, on_probability, seed=1):
+
     n_active = int(on_probability*dimension)
+    fname = 'vectors_{}_{}_{}_{}.npz'.format(num_vectors, dimension, n_active, seed)
+    if os.path.isfile(fname):
+        f = np.load(fname)
+        return f['vectors']
+
     np.random.seed(seed)
     # vecs = (np.random.uniform(0., 1., (num_vectors, dimension)) <= on_probability).astype('int')
     vecs = np.zeros((num_vectors, dimension))
@@ -13,12 +20,22 @@ def generate_input_vectors(num_vectors, dimension, on_probability, seed=1):
         indices = np.random.choice(np.arange(dimension, dtype='int'), size=n_active, replace=False)
         vecs[i, indices] = 1.0
     np.random.seed()
+
+    np.savez_compressed(fname, vectors=vecs)
+
     return vecs
 
 def generate_samples(input_vectors, num_samples, prob_noise, seed=1, method=None):
     """method='all' means randomly choose indices where we flip 1s and 0s with probability = prob_noise"""
     np.random.seed(seed)
-    
+
+    fname = 'samples_{}_{}_{}_{}.npz'.format(
+        input_vectors.shape[0], input_vectors.shape[1], num_samples, seed)
+
+    if os.path.isfile(fname):
+        f = np.load(fname)
+        return f['samples']
+
     samples = None
 
     for i in range(input_vectors.shape[0]):
@@ -49,10 +66,21 @@ def generate_samples(input_vectors, num_samples, prob_noise, seed=1, method=None
             samples = np.append(samples, samp, axis=0)
 
     np.random.seed()
+
+    np.savez_compressed(fname, samples=samples)
+
     return samples
 
 def samples_to_spike_times(samples, sample_dt, start_dt, max_rand_dt, seed=1,
     randomize_samples=False):
+
+    fname = 'spike_times_{}_{}_{}_{}_{}.npz'.format(
+        samples.shape[0], samples.shape[1], sample_dt, start_dt, seed)
+
+    if os.path.isfile(fname):
+        f = np.load(fname)
+        return f['indices'], f['spike_times'].tolist()
+
     np.random.seed(seed)
     t = 0
     spike_times = [[] for _ in range(samples.shape[-1])]
@@ -62,7 +90,11 @@ def samples_to_spike_times(samples, sample_dt, start_dt, max_rand_dt, seed=1,
     else:
         indices = np.arange(samples.shape[0])
 
-    for idx in indices:
+    total = float(len(indices))
+    for i, idx in enumerate(indices):
+        sys.stdout.write('\r\t\t%6.2f%%'%(100*((i+1.0)/total)))
+        sys.stdout.flush()
+
         samp = samples[idx]
         active = np.where(samp == 1.)[0]
         ts = t + start_dt + np.random.randint(-max_rand_dt, max_rand_dt+1, size=active.size) 
@@ -72,4 +104,10 @@ def samples_to_spike_times(samples, sample_dt, start_dt, max_rand_dt, seed=1,
 
         t += sample_dt
     np.random.seed()
+
+    sys.stdout.write('\n')
+    sys.stdout.flush()
+
+    np.savez_compressed(fname, spike_times=spike_times, indices=indices)
+
     return indices, spike_times

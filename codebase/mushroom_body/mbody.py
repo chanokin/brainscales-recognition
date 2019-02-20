@@ -35,7 +35,7 @@ def output_connection_list(kenyon_size, decision_size, prob_active,
     matrix[:, 2] = np.random.normal(inactive_weight, inactive_weight * 0.2,
                                     size=(kenyon_size * decision_size))
 
-    dice = np.random.uniform(0., 1., size=(kenyon_size*decision_size))
+    dice = np.random.uniform(0., 1., size=(kenyon_size * decision_size))
     active = np.where(dice <= prob_active)
     matrix[active, 2] = np.random.normal(active_weight, active_weight * 0.2,
                                          size=active[0].shape)
@@ -61,18 +61,39 @@ pprint(args)
 
 backend = args.backend
 
+neuron_class = 'IF_cond_exp'
+# neuron_class = 'IF_curr_exp'
 # heidelberg's brainscales seems to like these params
 e_rev = 92 #mV
-base_params = {
-    'cm': 0.09, #nF
-    'v_reset': -70., #mV
-    'v_rest': -65., #mV
-    'v_thresh': -55., #mV
-    'e_rev_I': -e_rev, #mV
-    'e_rev_E': 0.,#e_rev, #mV
-    'tau_m': 10., #ms
-    'tau_refrac': 1., #ms
-}
+# e_rev = 500.0 #mV
+
+if neuron_class == 'IF_cond_exp':
+    base_params = {
+        'cm': 0.09,  # nF
+        'v_reset': -70.,  # mV
+        'v_rest': -65.,  # mV
+        'v_thresh': -55.,  # mV
+        # 'e_rev_I': -e_rev, #mV
+        # 'e_rev_E': 0.,#e_rev, #mV
+        'tau_m': 10.,  # ms
+        'tau_refrac': 5.,  # ms
+    }
+
+    base_params['e_rev_I'] = -e_rev
+    base_params['e_rev_E'] = 0.0
+else:
+    base_params = {
+        'cm': 0.2,  # nF
+        'v_reset': -80.,  # mV
+        'v_rest': -65.,  # mV
+        'v_thresh': -50.,  # mV
+        # 'e_rev_I': -e_rev, #mV
+        # 'e_rev_E': 0.,#e_rev, #mV
+        'tau_m': 10.,  # ms
+        'tau_refrac': 5.,  # ms
+        'tau_syn_E': 1.0, # ms
+        'tau_syn_I': 5.0, # ms
+    }
 
 kenyon_parameters = base_params.copy()
 kenyon_parameters['tau_syn_E'] = 1.0#ms
@@ -84,7 +105,7 @@ horn_parameters['tau_syn_E'] = 1.0#ms
 decision_parameters = base_params.copy()
 decision_parameters['tau_syn_E'] = 1.0 #ms
 # decision_parameters['tau_syn_I'] = 2.5 #ms
-decision_parameters['tau_syn_I'] = 5.0 #ms
+decision_parameters['tau_syn_I'] = 10.0 #ms
 
 neuron_params = {
     'base': base_params, 'kenyon': kenyon_parameters,
@@ -100,14 +121,20 @@ sys.stdout.flush()
 input_vecs = generate_input_vectors(args.nPatternsAL, args.nAL, args.probAL, seed=123)
 # input_vecs = generate_input_vectors(10, 100, 0.1)
 # pprint(input_vecs)
+sys.stdout.write('\t\tdone with input vectors\n')
+sys.stdout.flush()
 
 samples = generate_samples(input_vecs, args.nSamplesAL, args.probNoiseSamplesAL, seed=234,
                            method='exact')
 # pprint(samples)
+sys.stdout.write('\t\tdone with samples\n')
+sys.stdout.flush()
 
 sample_dt, start_dt, max_rand_dt = 50, 25, 1
 sample_indices, spike_times = samples_to_spike_times(samples, sample_dt, start_dt, max_rand_dt,
                                 randomize_samples=args.randomizeSamplesAL, seed=345)
+sys.stdout.write('\t\tdone with spike times\n')
+sys.stdout.flush()
 
 sys.stdout.write('Done!\tCreating input patterns\n\n')
 sys.stdout.flush()
@@ -124,7 +151,7 @@ sys.stdout.write('Creating simulator abstraction\n')
 sys.stdout.flush()
 
 pynnx = PyNNAL(backend)
-pynnx.setup(per_sim_params={'use_cpu': True})
+pynnx.setup(timestep=0.1, per_sim_params={'use_cpu': True})
 
 sys.stdout.write('Done!\tCreating simulator abstraction\n\n')
 sys.stdout.flush()
@@ -133,14 +160,15 @@ sys.stdout.flush()
 sys.stdout.write('Creating populations\n')
 sys.stdout.flush()
 
+
 populations = {
     'antenna': pynnx.Pop(args.nAL, 'SpikeSourceArray',
                          {'spike_times': spike_times}, label='Antennae Lobe'),
-    'kenyon': pynnx.Pop(args.nKC, 'IF_cond_exp',
+    'kenyon': pynnx.Pop(args.nKC, neuron_class,
                         kenyon_parameters, label='Kenyon Cell'),
-    'horn': pynnx.Pop(args.nLH, 'IF_cond_exp',
+    'horn': pynnx.Pop(args.nLH, neuron_class,
                       horn_parameters, label='Lateral Horn'),
-    'decision': pynnx.Pop(args.nDN, 'IF_cond_exp',
+    'decision': pynnx.Pop(args.nDN, neuron_class,
                           decision_parameters, label='Decision Neurons'),
 }
 
@@ -151,26 +179,44 @@ pynnx.set_recording(populations['horn'], 'spikes')
 sys.stdout.write('Creating projections\n')
 sys.stdout.flush()
 
-static_w = {
-    'AL to KC': W2S*(100.0/float(args.nAL)),
-    # 'AL to LH': W2S*(1./(args.nAL*args.probAL)),
-    # 'AL to LH': W2S*(0.787 * (100.0/float(args.nAL))),
-    'AL to LH': W2S*(6.5 * (100.0/float(args.nAL))),
-    'LH to KC': W2S*(1.925 * (20.0/float(args.nLH))),
+if neuron_class == 'IF_cond_exp':
+    static_w = {
+        'AL to KC': W2S*(100.0/float(args.nAL)),
+        # 'AL to LH': W2S*(1./(args.nAL*args.probAL)),
+        # 'AL to LH': W2S*(0.787 * (100.0/float(args.nAL))),
+        'AL to LH': W2S*(6.5 * (100.0/float(args.nAL))),
+        'LH to KC': W2S*(1.925 * (20.0/float(args.nLH))),
 
-    'KC to KC': W2S*(0.1*(2500.0/float(args.nKC))),
+        'KC to KC': W2S*(0.1*(2500.0/float(args.nKC))),
 
-    'KC to DN': W2S*(1.5 * (2500.0/float(args.nKC))),
-    # 'DN to DN': W2S*(0.4 * (100.0/float(args.nDN))),
-    'DN to DN': W2S*(1. * (100.0/float(args.nDN))),
-    # 'DN to DN': W2S*(1./1.),
-    # 'DN to DN': W2S*(1./(args.nDN)),
+        'KC to DN': W2S*(2.0 * (2500.0/float(args.nKC))),
+        # 'KC to DN': W2S*(2.0 * (2500.0/float(args.nKC))),
+        # 'DN to DN': W2S*(0.4 * (100.0/float(args.nDN))),
+        'DN to DN': W2S*(10.0 * (100.0/float(args.nDN))),
+        # 'DN to DN': W2S*(1./1.),
+        # 'DN to DN': W2S*(1./(args.nDN)),
+    }
+else:
+    static_w = {
+        'AL to KC': W2S*1.0*(100.0/float(args.nAL)),
+        # 'AL to LH': W2S*(1./(args.nAL*args.probAL)),
+        # 'AL to LH': W2S*(0.787 * (100.0/float(args.nAL))),
+        'AL to LH': W2S*(8.75 * (100.0/float(args.nAL))),
+        'LH to KC': W2S*(1.925 * (20.0/float(args.nLH))),
 
-}
+        'KC to KC': W2S*(0.1*(2500.0/float(args.nKC))),
+
+        'KC to DN': W2S*(1.0 * (2500.0/float(args.nKC))),
+        # 'KC to DN': W2S*(2.0 * (2500.0/float(args.nKC))),
+        # 'DN to DN': W2S*(0.4 * (100.0/float(args.nDN))),
+        'DN to DN': W2S*(1.0 * (100.0/float(args.nDN))),
+        # 'DN to DN': W2S*(1./1.),
+        # 'DN to DN': W2S*(1./(args.nDN)),
+    }
 
 rand_w = {
     'AL to KC': pynnx.sim.RandomDistribution('normal',
-                    (static_w['AL to KC'], static_w['AL to KC']*0.2),
+                    (static_w['AL to KC'], static_w['AL to KC']*0.5),
                     pynnx.sim.NumpyRNG(seed=1)),
 }
 
@@ -178,20 +224,25 @@ gain_list = gain_control_list(args.nAL, args.nLH, static_w['AL to LH'])
 
 out_list = output_connection_list(args.nKC, args.nDN, args.probKC2DN,
                                   static_w['KC to DN'], args.inactiveScale,
-                                  seed=None)
+                                  seed=123456)
 
 stdp = {
     'timing_dependence': {
         'name': 'SpikePairRule',
-        'params': {'tau_plus': 16.8, 'tau_minus': 33.7},
+        'params': {'tau_plus': 16.8,
+                   'tau_minus': 63.7
+                   # 'tau_minus': 33.7
+                   },
     },
     'weight_dependence': {
+        # 'name':'AdditiveWeightDependence',
         'name':'MultiplicativeWeightDependence',
         'params': {
             # 'w_min': (static_w['KC to DN'])/10.0,
             'w_min': 0.0,
-            'w_max': (static_w['KC to DN']),
-            'A_plus': 0.01, 'A_minus': 0.05
+            'w_max': (static_w['KC to DN']*2.0),
+            # 'w_max': (static_w['KC to DN']),
+            'A_plus': 0.001, 'A_minus': 0.005
         },
     }
 }
@@ -214,9 +265,9 @@ projections = {
                            conn_params={}, target='inhibitory', label='LH to KC'),
 
     ### Inhibitory feedback --- kenyon cells
-    'KC to KC': pynnx.Proj(populations['kenyon'], populations['kenyon'],
-                            'AllToAllConnector', weights=static_w['KC to KC'], delays=1.0,
-                            conn_params={}, target='inhibitory', label='KC to KC'),
+    # 'KC to KC': pynnx.Proj(populations['kenyon'], populations['kenyon'],
+    #                         'AllToAllConnector', weights=static_w['KC to KC'], delays=1.0,
+    #                         conn_params={}, target='inhibitory', label='KC to KC'),
 
     'KC to DN': pynnx.Proj(populations['kenyon'], populations['decision'],
                            'FromListConnector', weights=None, delays=None,
@@ -224,8 +275,11 @@ projections = {
                            stdp=stdp),
     ### Inhibitory feedback --- decision neurons
     'DN to DN': pynnx.Proj(populations['decision'], populations['decision'],
-                           'AllToAllConnector', weights=static_w['DN to DN'], delays=1.0,
-                           conn_params={}, target='inhibitory', label='DN to DN'),
+                           'FixedProbabilityConnector', weights=static_w['DN to DN'], delays=1.0,
+                           conn_params={'p_connect': 0.5}, target='inhibitory', label='DN to DN'),
+    # 'DN to DN': pynnx.Proj(populations['decision'], populations['decision'],
+    #                        'AllToAllConnector', weights=static_w['DN to DN'], delays=1.0,
+    #                        conn_params={}, target='inhibitory', label='DN to DN'),
 }
 
 sys.stdout.write('Running simulation\n')
