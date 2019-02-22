@@ -32,16 +32,18 @@ def output_connection_list(kenyon_size, decision_size, prob_active,
     np.random.seed(seed)
 
     inactive_weight = active_weight * inactive_scaling
-    matrix[:, 2] = np.random.normal(inactive_weight, inactive_weight * 0.2,
-                                    size=(kenyon_size * decision_size))
+    matrix[:, 2] = np.clip(np.random.normal(inactive_weight, inactive_weight * 0.2,
+                                    size=(kenyon_size * decision_size)),
+                           0, np.inf)
 
     dice = np.random.uniform(0., 1., size=(kenyon_size * decision_size))
     active = np.where(dice <= prob_active)
-    matrix[active, 2] = np.random.normal(active_weight, active_weight * 0.2,
-                                         size=active[0].shape)
+    matrix[active, 2] = np.clip(np.random.normal(active_weight, active_weight * 0.2,
+                                         size=active[0].shape),
+                                0, np.inf)
 
     np.random.seed()
-
+    # pprint(np.where(matrix[:, 2] < 0.0))
     return matrix
 
 def args_to_str(arguments):
@@ -116,7 +118,8 @@ neuron_params = {
 }
 
 W2S = args.w2s
-sample_dt, start_dt, max_rand_dt = 50, 25, 5
+# sample_dt, start_dt, max_rand_dt = 10, 5, 2
+sample_dt, start_dt, max_rand_dt = 50, 25, 2
 sim_time = sample_dt * args.nSamplesAL * args.nPatternsAL
 timestep = 1.0 if bool(0) else 0.1
 
@@ -136,7 +139,8 @@ sys.stdout.write('\t\tdone with samples\n')
 sys.stdout.flush()
 
 sample_indices, spike_times = samples_to_spike_times(samples, sample_dt, start_dt, max_rand_dt,
-                                randomize_samples=args.randomizeSamplesAL, seed=345)
+                                randomize_samples=args.randomizeSamplesAL, seed=345,
+                                regenerate=bool(0))
 sys.stdout.write('\t\tdone with spike times\n')
 sys.stdout.flush()
 
@@ -242,20 +246,20 @@ out_list = output_connection_list(args.nKC, args.nDN, args.probKC2DN,
 stdp = {
     'timing_dependence': {
         'name': 'SpikePairRule',
-        'params': {'tau_plus': 16.8,
-                   'tau_minus': 168.0,
+        'params': {'tau_plus': 5.0,
+                   'tau_minus': 10.0,
                    # 'tau_minus': 33.7,
                    },
     },
     'weight_dependence': {
-        # 'name':'AdditiveWeightDependence',
-        'name':'MultiplicativeWeightDependence',
+        'name':'AdditiveWeightDependence',
+        # 'name':'MultiplicativeWeightDependence',
         'params': {
             # 'w_min': (static_w['KC to DN'])/10.0,
             'w_min': 0.0,
-            'w_max': (static_w['KC to DN']*2.0),
+            'w_max': (static_w['KC to DN']*5.0),
             # 'w_max': (static_w['KC to DN']),
-            'A_plus': -0.001, 'A_minus': 0.00012,
+            'A_plus': 0.01, 'A_minus': 0.05,
         },
     }
 }

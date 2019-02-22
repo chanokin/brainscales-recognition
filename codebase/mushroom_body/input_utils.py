@@ -72,12 +72,12 @@ def generate_samples(input_vectors, num_samples, prob_noise, seed=1, method=None
     return samples
 
 def samples_to_spike_times(samples, sample_dt, start_dt, max_rand_dt, seed=1,
-    randomize_samples=False):
+    randomize_samples=False, regenerate=False):
 
     fname = 'spike_times_{}_{}_{}_{}_{}.npz'.format(
         samples.shape[0], samples.shape[1], sample_dt, start_dt, seed)
 
-    if os.path.isfile(fname):
+    if not regenerate and os.path.isfile(fname):
         f = np.load(fname)
         return f['indices'], f['spike_times'].tolist()
 
@@ -97,7 +97,9 @@ def samples_to_spike_times(samples, sample_dt, start_dt, max_rand_dt, seed=1,
 
         samp = samples[idx]
         active = np.where(samp == 1.)[0]
-        ts = t + start_dt + np.random.randint(-max_rand_dt, max_rand_dt+1, size=active.size) 
+        # max_start_dt = (sample_dt - start_dt)
+        rand_start_dt = 0#np.random.randint(-start_dt, start_dt)
+        ts = t + rand_start_dt + start_dt + np.random.randint(-max_rand_dt, max_rand_dt+1, size=active.size)
         for time_id, neuron_id in enumerate(active):
             if ts[time_id] not in spike_times[neuron_id]:
                 spike_times[neuron_id].append(ts[time_id])
