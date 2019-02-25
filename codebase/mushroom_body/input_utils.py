@@ -5,6 +5,37 @@ from future.builtins import str, open, range, dict
 import numpy as np
 import sys
 import os
+
+### from NE15/poisson_tools.py
+def nextTime(rateParameter):
+    '''Helper function to Poisson generator
+       :param rateParameter: The rate at which a neuron will fire (Hz)
+
+       :returns: Time at which the neuron should spike next (seconds)
+    '''
+    return -np.log(1.0 - np.random.random()) / rateParameter
+    # random.expovariate(rateParameter)
+
+
+def poisson_generator(rate, t_start, t_stop):
+    '''Poisson train generator
+       :param rate: The rate at which a neuron will fire (Hz)
+       :param t_start: When should the neuron start to fire (milliseconds)
+       :param t_stop: When should the neuron stop firing (milliseconds)
+
+       :returns: Poisson train firing at rate, from t_start to t_stop (milliseconds)
+    '''
+    poisson_train = []
+    if rate > 0:
+        next_isi = nextTime(rate) * 1000.
+        last_time = next_isi + t_start
+        while last_time < t_stop:
+            poisson_train.append(last_time)
+            next_isi = nextTime(rate) * 1000.
+            last_time += next_isi
+    return poisson_train
+
+
 def generate_input_vectors(num_vectors, dimension, on_probability, seed=1):
 
     n_active = int(on_probability*dimension)
@@ -24,6 +55,54 @@ def generate_input_vectors(num_vectors, dimension, on_probability, seed=1):
     np.savez_compressed(fname, vectors=vecs)
 
     return vecs
+
+def generate_spike_times_poisson(input_vectors, num_samples, sample_dt, start_dt, high_dt,
+                                 high_freq, low_freq, seed=1, randomize_samples=True, regenerate=False):
+
+    fname = 'poission_spike_times_n{}_v{}_dim{}_dt{}_hi{}_seed{}.npz'.format(
+        num_samples, input_vectors.shape[0], input_vectors.shape[1], sample_dt, high_freq, seed)
+
+    if not regenerate and os.path.isfile(fname):
+        f = np.load(fname)
+        return f['indices'], f['spike_times'].tolist()
+
+    np.random.seed(seed)
+    spike_times = [[] for _ in range(input_vectors.shape[1])]
+    total_samples = num_samples * input_vectors.shape[0]
+    if randomize_samples:
+        indices = np.arange(total_samples)
+        np.random.shuffle(indices)
+    else:
+        indices = np.arange(total_samples)
+
+    t = 0
+    for i, s_idx in enumerate(indices):
+        sys.stdout.write('\r\t\t%6.2f%%' % (100 * ((i + 1.0) / total_samples)))
+        sys.stdout.flush()
+
+        pat_idx = s_idx // num_samples
+        pat = input_vectors[pat_idx]
+        for n_idx in range(pat.size):
+            if pat[n_idx] == 0:
+                spike_times[n_idx] += poisson_generator(low_freq, t, t + sample_dt)
+            else:
+                start_t = t + start_dt
+                end_t = t + start_dt + high_dt
+                spike_times[n_idx] += poisson_generator(high_freq, start_t, end_t)
+
+        t += sample_dt
+
+    for n_idx in range(pat.size):
+        spike_times[n_idx][:] = sorted(spike_times[n_idx])
+
+    np.savez_compressed(fname, spike_times=spike_times, indices=indices)
+
+    np.random.seed()
+
+    sys.stdout.write('\n')
+    sys.stdout.flush()
+
+    return indices, spike_times
 
 def generate_samples(input_vectors, num_samples, prob_noise, seed=1, method=None):
     """method='all' means randomly choose indices where we flip 1s and 0s with probability = prob_noise"""

@@ -38,13 +38,13 @@ timestep = 0.1
 max_w = 0.01
 start_w = max_w / 2.0
 
-tau_plus = 5.0
-tau_minus = 10.0
+tau_plus = 10.0
+tau_minus = 50.0
 a_plus = 0.01
 a_minus = 0.005
 delays = range(1, 11)
 
-start_dt, num_dt = -15, 30
+start_dt, num_dt, ddt = -150, 300, 1
 sim_time = np.round(1.5 * num_dt)
 start_t = sim_time - num_dt
 trigger_t = start_t + (start_dt + num_dt//2)
@@ -52,13 +52,14 @@ num_neurons = num_dt
 
 delays = [1, 3]
 dt_dw = {d: {} for d in delays}
+out_w  = {d: {} for d in delays}
 pynnx = PyNNAL(backend)
 pynnx._sim.setup(timestep=timestep, min_delay=timestep,
                  extra_params={'use_cpu': True})
 
 
 projs = {d: {} for d in delays}
-for dt in range(start_dt, start_dt+num_dt, 1):
+for dt in range(start_dt, start_dt+num_dt, ddt):
     pre_spike_times = [[trigger_t + dt]]
     trigger_spike_times = [[trigger_t]]
 
@@ -141,7 +142,8 @@ pynnx.run(sim_time)
 
 for d in projs:
     for dt in projs[d]:
-        dt_dw[d][dt] = (pynnx.get_weights(projs[d][dt])[0,0] - start_w) / max_w
+        out_w[d][dt] = pynnx.get_weights(projs[d][dt])[0,0]
+        dt_dw[d][dt] = (out_w[d][dt] - start_w) / max_w
 
 pynnx.end()
 
@@ -153,7 +155,7 @@ for d in dt_dw:
         total_dt_dw[dt] = dw
 
 np.savez_compressed('compound_synapse.npz', total_dt_dw=total_dt_dw,
-                    dt_dw=dt_dw,)
+                    dt_dw=dt_dw, end_w=out_w)
 
 plt.figure()
 ax = plt.subplot()

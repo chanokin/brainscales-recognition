@@ -11,7 +11,7 @@ python mbody.py 100 2500 20 100 0.025 0.0025 \
     --probAL=0.2 \
     --probAL2KC=0.15 \
     --nPatternsAL=10 \
-    --nSamplesAL=6000 \
+    --nSamplesAL=100 \
     --randomizeSamplesAL=1 \
     --renderSpikes=0 \
     --probKC2DN=0.2
@@ -25,4 +25,6 @@ python mbody.py 100 2500 20 100 0.025 0.0025 \
 #    --randomizeSamplesAL=1 \
 #    --renderSpikes=0 \
 #    --probKC2DN=0.2
+
+
 
