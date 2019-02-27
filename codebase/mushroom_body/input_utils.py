@@ -13,7 +13,7 @@ def nextTime(rateParameter):
 
        :returns: Time at which the neuron should spike next (seconds)
     '''
-    return -np.log(1.0 - np.random.random()) / rateParameter
+    return -np.log(1.0 - np.random.uniform(0.0, 1.0)) / rateParameter
     # random.expovariate(rateParameter)
 
 
@@ -87,7 +87,7 @@ def generate_spike_times_poisson(input_vectors, num_samples, sample_dt, start_dt
                 spike_times[n_idx] += poisson_generator(low_freq, t, t + sample_dt)
             else:
                 start_t = t + start_dt
-                end_t = t + start_dt + high_dt
+                end_t = start_t + high_dt
                 spike_times[n_idx] += poisson_generator(high_freq, start_t, end_t)
 
         t += sample_dt
@@ -104,14 +104,14 @@ def generate_spike_times_poisson(input_vectors, num_samples, sample_dt, start_dt
 
     return indices, spike_times
 
-def generate_samples(input_vectors, num_samples, prob_noise, seed=1, method=None):
+def generate_samples(input_vectors, num_samples, prob_noise, seed=1, method='exact', regenerate=False):
     """method='all' means randomly choose indices where we flip 1s and 0s with probability = prob_noise"""
     np.random.seed(seed)
 
     fname = 'samples_{}_{}_{}_{}.npz'.format(
         input_vectors.shape[0], input_vectors.shape[1], num_samples, seed)
 
-    if os.path.isfile(fname):
+    if os.path.isfile(fname) and not regenerate:
         f = np.load(fname)
         return f['samples']
 
@@ -119,10 +119,19 @@ def generate_samples(input_vectors, num_samples, prob_noise, seed=1, method=None
 
     for i in range(input_vectors.shape[0]):
         samp = np.tile(input_vectors[i, :], (num_samples, 1)).astype('int')
-        if method == 'all':
-            dice = np.random.uniform(0., 1., samp.shape)
-            whr = np.where(dice < prob_noise)
-            samp[whr] = 1 - samp[whr]
+        if method == 'random':
+            base_flips = int(np.mean(input_vectors.sum(axis=1)) * prob_noise)
+            for j in range(num_samples):
+                # flip zeros to ones
+                n_flips = base_flips + np.random.randint(-1, 2)
+                indices = np.random.choice(np.where(samp[j] == 0)[0], size=n_flips, replace=False)
+                samp[j, indices] = 1
+
+                #flip ones to zeros
+                n_flips = base_flips + np.random.randint(-1, 2)
+                indices = np.random.choice(np.where(samp[j] == 1)[0], size=n_flips, replace=False)
+                samp[j, indices] = 0
+
         elif method == 'exact':
             n_flips = int(np.mean(input_vectors.sum(axis=1)) * prob_noise)
             for j in range(num_samples):
@@ -134,10 +143,9 @@ def generate_samples(input_vectors, num_samples, prob_noise, seed=1, method=None
                 indices = np.random.choice(np.where(samp[j] == 1)[0], size=n_flips, replace=False)
                 samp[j, indices] = 0
         else:
-            n_flips = int(np.mean(input_vectors.sum(axis=1)) * prob_noise) * 2
-            for j in range(num_samples):
-                indices = np.random.choice(np.arange(input_vectors.shape[1]), size=n_flips, replace=False)
-                samp[j, indices] = 1 - samp[j, indices]
+            dice = np.random.uniform(0., 1., samp.shape)
+            whr = np.where(dice < prob_noise)
+            samp[whr] = 1 - samp[whr]
 
         if samples is None:
             samples = samp
