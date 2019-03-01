@@ -315,11 +315,13 @@ class PyNNAL(object):
                 spikes[:] = [data[np.where(data[:, 0] == nid)][:, 1].tolist() \
                                 if nid in ids else [] for nid in range(pop.size)]
             else:
-                spiketrains = pop.get_data().segments[0].spiketrains
-                spikes[:] = [[] for _ in spiketrains]
+                data = pop.get_data()
+                segments = data.segments
+                spiketrains = segments[0].spiketrains
+                spikes[:] = [[] for _ in range(pop.size)]
                 for train in spiketrains:
-                    ### NOTE: had to remove units because pyro or pypet don't like it!
-                    spikes[int(train.annotations['source_index'])][:] = \
+                    ### NOTE: had to remove units because pyro don't like numpy!
+                    spikes[int(train.annotations['source_index'] - 1)][:] = \
                         [float(t) for t in train] 
         
         return spikes

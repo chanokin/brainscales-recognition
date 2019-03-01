@@ -50,13 +50,12 @@ start_t = sim_time - num_dt
 trigger_t = start_t + (start_dt + num_dt//2)
 num_neurons = num_dt
 
+pynnx = PyNNAL(backend)
+pynnx._sim.setup(timestep=timestep, min_delay=timestep,
+                 extra_params={'use_cpu': True})
 
-experiments = {}
+pprojs = {}
 for delay in delays:
-    dt_dw = {}
-    pynnx = PyNNAL(backend)
-    pynnx._sim.setup(timestep=timestep, min_delay=timestep,
-                     extra_params={'use_cpu': True})
 
     a_plus_local = a_plus if delay == 1.0 else -a_plus
     a_minus_local = a_minus if delay == 1.0 else -a_minus
@@ -107,15 +106,19 @@ for delay in delays:
 
         projs[dt] = pre2post
 
+    pprojs[delay] = projs
 
-    pynnx.run(sim_time)
-
-    for dt in projs:
-        dt_dw[dt] = (pynnx.get_weights(projs[dt])[0,0] - start_w) / max_w
-
-    pynnx.end()
-
+pynnx.run(sim_time)
+experiments = {}
+for delay in pprojs:
+    dt_dw = {}
+    for dt in pprojs[delay]:
+        dt_dw[dt] = (pynnx.get_weights(pprojs[delay][dt])[0,0] - start_w) / max_w
     experiments[delay] = dt_dw
+
+pynnx.end()
+
+
 
 plt.figure()
 ax = plt.subplot()

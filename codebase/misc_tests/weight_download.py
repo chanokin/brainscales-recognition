@@ -34,7 +34,8 @@ base_params = {
 base_params['e_rev_I'] = -e_rev
 base_params['e_rev_E'] = 0.0
 
-n_neurons = 3
+n_pre = 3
+n_post = 5
 timestep = 1.
 
 pynnx = PyNNAL(backend)
@@ -42,22 +43,45 @@ pynnx._sim.setup(timestep=timestep, min_delay=timestep,
                  extra_params={'use_cpu': True})
 
 
-pre = pynnx.Pop(n_neurons, neuron_class, base_params)
-pre2 = pynnx.Pop(n_neurons, neuron_class, base_params)
-post = pynnx.Pop(n_neurons, neuron_class, base_params)
+pre = pynnx.Pop(n_pre, neuron_class, base_params)
+post = pynnx.Pop(n_post, neuron_class, base_params)
 
+t_plus = 10.0
+t_minus = 10.0
+a_plus = 1.0
+a_minus = 1.0
+w_max = 10.0
 
-w = [[i, j, 1 + i*n_neurons + j, 1] for i in range(n_neurons) for j in range(n_neurons)]
+stdp = {
+    'timing_dependence': {
+        'name': 'SpikePairRule',
+        'params': {'tau_plus': t_plus,
+                   'tau_minus': t_minus,
+                   # 'tau_minus': 33.7,
+                   },
+    },
+    'weight_dependence': {
+        'name':'AdditiveWeightDependence',
+        # 'name':'MultiplicativeWeightDependence',
+        'params': {
+            # 'w_min': (static_w['KC to DN'])/10.0,
+            'w_min': 0.0,
+            'w_max': w_max,
+            # 'w_max': (static_w['KC to DN']),
+            'A_plus': a_plus, 'A_minus': a_minus,
+        },
+    }
+}
+
+w = [[i, j, 1 + i*n_post + j, 1] for i in range(n_pre) for j in range(n_post)]
 # print(w)
-w_in = np.empty((n_neurons, n_neurons))
+w_in = np.empty((n_pre, n_post))
 for r, c, v, d in w:
     w_in[r, c] = v
 
 # print(w_in)
 proj = pynnx.Proj(pre, post, 'FromListConnector', None, None,
-                  conn_params={'conn_list': w})
-proj2 = pynnx.Proj(pre2, post, 'FromListConnector', None, None,
-                   conn_params={'conn_list': w}, target='inhibitory')
+                  conn_params={'conn_list': w}, stdp=stdp)
 
 pynnx.run(1)
 
@@ -67,4 +91,12 @@ pynnx.end()
 
 # print(w_out)
 
-print((w_in - w_out).sum())
+
+# print((w_in - w_out))
+print("sum of abs diff", np.sum(np.abs(w_in - w_out)))
+# print(w_in.flatten())
+print(np.where(w_in == 6.))
+print(np.where(w_in == 6.)[0]*n_post + np.where(w_in == 6.)[1] )
+print(np.where(w_in.flatten() == 6.))
+print(np.where(w_in.flatten() == 6.)[0]//n_post, np.where(w_in.flatten() == 6.)[0]%n_post)
+# print(w_in.flatten() - w_out.flatten())
