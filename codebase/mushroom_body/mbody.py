@@ -39,9 +39,9 @@ def output_connection_list(kenyon_size, decision_size, prob_active,
                            0, clip_to)
 
     dice = np.random.uniform(0., 1., size=(kenyon_size * decision_size))
-    active = np.where(dice <= prob_active)
+    active = np.where(dice <= prob_active)[0]
     matrix[active, 2] = np.clip(np.random.normal(active_weight, active_weight * 0.3,
-                                         size=active[0].shape),
+                                         size=active.shape),
                                 0, clip_to)
 
     np.random.seed()
@@ -128,7 +128,7 @@ if neuron_class == 'IF_curr_exp':
     W2S *= 0.6/0.0025
 
 # sample_dt, start_dt, max_rand_dt = 10, 5, 2
-sample_dt, start_dt, max_rand_dt = 50, 25, 2
+sample_dt, start_dt, max_rand_dt = 50, 25, 5
 sim_time = sample_dt * args.nSamplesAL * args.nPatternsAL
 timestep = 1.0 if bool(1) else 0.1
 
@@ -142,14 +142,14 @@ sys.stdout.write('\t\tdone with input vectors\n')
 sys.stdout.flush()
 
 samples = generate_samples(input_vecs, args.nSamplesAL, args.probNoiseSamplesAL, seed=234,
-                           method='random', regenerate=bool(0))
+                           method='random', regenerate=bool(1))
 # pprint(samples)
 sys.stdout.write('\t\tdone with samples\n')
 sys.stdout.flush()
 
 sample_indices, spike_times = samples_to_spike_times(samples, sample_dt, start_dt, max_rand_dt,
                                 randomize_samples=args.randomizeSamplesAL, seed=345,
-                                regenerate=bool(0))
+                                regenerate=bool(1))
 
 high_dt = 3
 low_freq, high_freq = 10, 100
@@ -237,18 +237,18 @@ else:
         'AL to KC': W2S * 1.0 * (100.0/float(args.nAL)),
         # 'AL to LH': W2S*(1./(args.nAL*args.probAL)),
         # 'AL to LH': W2S*(0.787 * (100.0/float(args.nAL))),
-        'AL to LH': W2S*(5.5 * (100.0/float(args.nAL))),
+        'AL to LH': W2S*(7.0 * (100.0/float(args.nAL))),
         ### inhibitory
         'LH to KC': -W2S*(0.2 * (20.0/float(args.nLH))),
         ### inhibitory
         'KC to KC': -W2S*(0.1 * (2500.0/float(args.nKC))),
 
-        'KC to DN': W2S*(1.0 * (2500.0/float(args.nKC))),
+        'KC to DN': W2S*(3.0 * (2500.0/float(args.nKC))),
         # 'KC to DN': W2S*(2.0 * (2500.0/float(args.nKC))),
 
         ### inhibitory
         # 'DN to DN': W2S*(0.4 * (100.0/float(args.nDN))),
-        'DN to DN': -W2S*(0.5 * (100.0/float(args.nDN))),
+        'DN to DN': -W2S*(1.0 * (100.0/float(args.nDN))),
         # 'DN to DN': W2S*(1./1.),
         # 'DN to DN': W2S*(1./(args.nDN)),
         'NS to DN': W2S * 8.0 * (1.0 * (100.0 / float(args.nDN))),
@@ -256,12 +256,12 @@ else:
 
 rand_w = {
     'AL to KC': pynnx.sim.RandomDistribution('normal',
-                    (static_w['AL to KC'], static_w['AL to KC']*0.2),
+                    (static_w['AL to KC'], static_w['AL to KC']*0.1),
                     pynnx.sim.NumpyRNG(seed=1)),
 }
 
-w_max = (static_w['KC to DN']*1.0) * 1.0
-
+w_max = (static_w['KC to DN']*1.0) * 1.2
+print("w_max ", w_max)
 gain_list = gain_control_list(args.nAL, args.nLH, static_w['AL to LH'])
 
 out_list = output_connection_list(args.nKC, args.nDN, args.probKC2DN,
@@ -269,10 +269,10 @@ out_list = output_connection_list(args.nKC, args.nDN, args.probKC2DN,
                                   seed=123456, clip_to=w_max)
 
 
-t_plus = 3.0
-t_minus = 50.0
-a_plus = 0.01
-a_minus = 0.01
+t_plus = 10.0
+t_minus = 10.0
+a_plus = 5.0
+a_minus = 10.0
 
 stdp = {
     'timing_dependence': {
@@ -351,7 +351,7 @@ projections = {
     ### Inhibitory feedback --- decision neurons
     'DN to DN': pynnx.Proj(populations['decision'], populations['decision'],
                            'FixedProbabilityConnector', weights=static_w['DN to DN'], delays=1.0,
-                           conn_params={'p_connect': 0.75}, target='inhibitory', label='DN to DN'),
+                           conn_params={'p_connect': 0.8}, target='inhibitory', label='DN to DN'),
 
     # 'DN to DN': pynnx.Proj(populations['decision'], populations['decision'],
     #                        'AllToAllConnector', weights=static_w['DN to DN'], delays=timestep,
@@ -372,8 +372,22 @@ sys.stdout.write('Running simulation\n')
 sys.stdout.flush()
 
 
+
+starting_weights = np.zeros((args.nKC, args.nDN))
+for i, j, v, d in out_list:
+    starting_weights[int(i), int(j)] = v
+starting_weights = np.ravel(starting_weights)
+weights = [starting_weights]
+
+weight_sample_dt = float(sample_dt )
+n_loops = np.ceil(sim_time/weight_sample_dt)
 t0 = time.time()
-pynnx.run(sim_time)
+for loop in np.arange(n_loops):
+    pynnx.run(sample_dt)
+    tmp_w = pynnx.get_weights(projections['KC to DN'])
+    # print(loop, tmp_w.shape)
+    weights.append(np.ravel(tmp_w))
+
 secs_to_run = time.time() - t0
 
 mins_to_run = secs_to_run // 60
@@ -442,7 +456,8 @@ np.savez_compressed(fname, args=args, sim_time=sim_time,
     dn_voltage=dn_voltage,
     high_dt=high_dt,
     low_freq=low_freq, high_freq=high_freq,
-
+    weights=weights, weight_sample_dt=weight_sample_dt,
+    timestep=timestep,
 )
 sys.stdout.write('Done!\tSaving experiment\n\n')
 sys.stdout.flush()
