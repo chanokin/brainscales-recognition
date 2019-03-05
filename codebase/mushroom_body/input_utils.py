@@ -200,3 +200,14 @@ def samples_to_spike_times(samples, sample_dt, start_dt, max_rand_dt, seed=1,
     np.savez_compressed(fname, spike_times=spike_times, indices=indices)
 
     return indices, spike_times
+
+
+def generate_tick_spikes(samples, sample_dt, start_dt, num_test_samples, delay):
+    n_samples = (samples.shape[0] - num_test_samples)
+    t = start_dt + delay
+    ticks = [[]]
+    for _ in range(n_samples):
+        ticks[0].append(t)
+        t += sample_dt
+
+    return ticks

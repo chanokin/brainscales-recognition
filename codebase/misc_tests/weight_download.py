@@ -34,7 +34,7 @@ base_params = {
 base_params['e_rev_I'] = -e_rev
 base_params['e_rev_E'] = 0.0
 
-n_pre = 3
+n_pre = 10
 n_post = 5
 timestep = 1.
 
@@ -43,13 +43,13 @@ pynnx._sim.setup(timestep=timestep, min_delay=timestep,
                  extra_params={'use_cpu': True})
 
 
-pre = pynnx.Pop(n_pre, neuron_class, base_params)
+pre = pynnx.Pop(n_pre, 'SpikeSourceArray', {'spike_times': [[] for _ in range(n_pre)]})
 post = pynnx.Pop(n_post, neuron_class, base_params)
 
-t_plus = 10.0
-t_minus = 10.0
-a_plus = 1.0
-a_minus = 1.0
+t_plus = 0.0
+t_minus = 0.0
+a_plus = 0.0
+a_minus = 0.0
 w_max = 10.0
 
 stdp = {
@@ -79,7 +79,7 @@ w_in = np.empty((n_pre, n_post))
 for r, c, v, d in w:
     w_in[r, c] = v
 
-# print(w_in)
+print(w_in)
 proj = pynnx.Proj(pre, post, 'FromListConnector', None, None,
                   conn_params={'conn_list': w}, stdp=stdp)
 
@@ -89,7 +89,7 @@ w_out = pynnx.get_weights(proj)
 
 pynnx.end()
 
-# print(w_out)
+print(w_out)
 
 
 # print((w_in - w_out))

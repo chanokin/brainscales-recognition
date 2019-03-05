@@ -321,7 +321,7 @@ class PyNNAL(object):
                 spikes[:] = [[] for _ in range(pop.size)]
                 for train in spiketrains:
                     ### NOTE: had to remove units because pyro don't like numpy!
-                    spikes[int(train.annotations['source_index'] - 1)][:] = \
+                    spikes[int(train.annotations['source_index'])][:] = \
                         [float(t) for t in train] 
         
         return spikes
