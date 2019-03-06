@@ -120,6 +120,7 @@ decision_parameters['tau_syn_E'] = 1.0 #ms
 # decision_parameters['tau_syn_I'] = 2.5 #ms
 decision_parameters['tau_syn_I'] = 1.0 #ms
 decision_parameters['tau_refrac'] = 5.0
+decision_parameters['tau_m'] = 8.0
 
 fb_parameters = base_params.copy()
 fb_parameters['tau_syn_E'] = 1.0 #ms
@@ -137,12 +138,12 @@ if neuron_class == 'IF_curr_exp':
     W2S *= 0.6/0.0025
 
 # sample_dt, start_dt, max_rand_dt = 10, 5, 2
-sample_dt, start_dt, max_rand_dt = 50, 25, 5
+sample_dt, start_dt, max_rand_dt = 50, 25, 2
 sim_time = sample_dt * args.nSamplesAL * args.nPatternsAL
 timestep = 1.0 if bool(1) else 0.1
-regenerate = bool(0)
-record_all = bool(1)
-fixed_loops = bool(1)
+regenerate = args.regenerateSamples
+record_all = args.recordAllOutputs
+fixed_loops = args.fixedNumLoops
 
 
 sys.stdout.write('Creating input patterns\n')
@@ -215,7 +216,7 @@ populations = {
     'decision': pynnx.Pop(args.nDN, neuron_class,
                           decision_parameters, label='Decision Neurons'),
     'noise': pynnx.Pop(args.nDN, 'SpikeSourcePoisson',
-                       {'rate': 5.0, 'start': 0, 'duration': np.floor(sim_time*0.666)},
+                       {'rate': 1.0, 'start': 0, 'duration': np.floor(sim_time*0.3)},
                        label='decision noise'),
     'tick': pynnx.Pop(1, 'SpikeSourceArray',
                       {'spike_times': tick_spikes}, label='Tick Neurons'),
@@ -261,7 +262,7 @@ if neuron_class == 'IF_cond_exp':
     }
 else:
     static_w = {
-        'AL to KC': W2S * 1.1 * (100.0/float(args.nAL)),
+        'AL to KC': W2S * 1.0 * (100.0/float(args.nAL)),
         # 'AL to LH': W2S*(1./(args.nAL*args.probAL)),
         # 'AL to LH': W2S*(0.787 * (100.0/float(args.nAL))),
         'AL to LH': W2S*(7.0 * (100.0/float(args.nAL))),
@@ -273,6 +274,7 @@ else:
         'KC to DN': W2S*(2.0 * (2500.0/float(args.nKC))),
         # 'KC to DN': W2S*(2.0 * (2500.0/float(args.nKC))),
 
+        'iKC to DN': -W2S * (0.5 * (2500.0 / float(args.nKC))),
         ### inhibitory
         # 'DN to DN': W2S*(0.4 * (100.0/float(args.nDN))),
         'DN to DN': -W2S*(1.0 * (100.0/float(args.nDN))),
@@ -292,7 +294,7 @@ rand_w = {
                     pynnx.sim.NumpyRNG(seed=1)),
 }
 
-w_max = (static_w['KC to DN']*1.0) * 1.2
+w_max = (static_w['KC to DN']*1.0) * 1.
 print("w_max ", w_max)
 gain_list = gain_control_list(args.nAL, args.nLH, static_w['AL to LH'],
                               # cutoff=None
@@ -304,9 +306,9 @@ out_list = output_connection_list(args.nKC, args.nDN, args.probKC2DN,
 
 
 t_plus = 2.0
-t_minus = 15.0
-a_plus = 0.01
-a_minus = 0.05
+t_minus = 20.0
+a_plus = 0.001
+a_minus = 0.005
 
 stdp = {
     'timing_dependence': {
@@ -382,6 +384,10 @@ projections = {
     #                        conn_params={'conn_list': out_list}, label='KC to DN',
     #                        stdp=stdp_inv),
 
+    'iKC to DN': pynnx.Proj(populations['kenyon'], populations['decision'],
+                           'FixedProbabilityConnector', weights=static_w['iKC to DN'], delays=timestep,
+                           conn_params={'p_connect': 0.01}, target='inhibitory', label='iKC to DN'),
+
     ### Inhibitory feedback --- decision neurons
     'DN to DN': pynnx.Proj(populations['decision'], populations['decision'],
                            'FixedProbabilityConnector', weights=static_w['DN to DN'], delays=1.0,
@@ -393,7 +399,7 @@ projections = {
 
     # 'NS to DN': pynnx.Proj(populations['noise'], populations['decision'],
     #                        'FixedProbabilityConnector', weights=static_w['NS to DN'], delays=1.0,
-    #                        conn_params={'p_connect': 0.1}, target='excitatory',
+    #                        conn_params={'p_connect': 0.01}, target='excitatory',
     #                        label='NS to DN'),
 
     # 'NS to KC': pynnx.Proj(populations['noise'], populations['kenyon'],
@@ -406,7 +412,7 @@ projections = {
                            target='excitatory', label='DN to FB'),
 
     'FB to DN': pynnx.Proj(populations['feedback'], populations['decision'],
-                           'OneToOneConnector', weights=static_w['FB to DN'], delays=20.0,
+                           'OneToOneConnector', weights=static_w['FB to DN'], delays=15.0,
                            target='excitatory', label='FB to DN'),
 
     'TK to FB': pynnx.Proj(populations['tick'], populations['feedback'],
@@ -426,12 +432,12 @@ for i, j, v, d in out_list:
 starting_weights = starting_weights.flatten()
 weights = [starting_weights]
 
-if fixed_loops:
+if fixed_loops == 0:
     # weight_sample_dt = 10.
     weight_sample_dt = float(sample_dt*(args.nSamplesAL*0.1))
     n_loops = np.ceil(sim_time/weight_sample_dt)
 else:
-    n_loops = 10
+    n_loops = fixed_loops
     weight_sample_dt = np.ceil(sim_time/float(n_loops))
 
 print("num loops = {}\ttime per loop {}".format(n_loops, weight_sample_dt))

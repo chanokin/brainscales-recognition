@@ -51,4 +51,14 @@ def get_args():
         help='Whether to render spikes from each population. This may slow down getting done with the simulation.')
 
 
+    parser.add_argument('--regenerateSamples', type=str2bool, default='False',
+        help='Whether to generate new samples or grab them from cache files')
+
+    parser.add_argument('--recordAllOutputs', type=str2bool, default='False',
+        help='Whether to record as many output variables as possible')
+
+    parser.add_argument('--fixedNumLoops', type=int, default=10,
+        help='How many weight recording loops to execute. If zero, 1% of nSamplesAL will be chosen')
+
+
     return parser.parse_args()
