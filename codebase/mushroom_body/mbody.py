@@ -17,39 +17,41 @@ from input_utils import *
 
 def gain_control_list(input_size, horn_size, max_w, cutoff=0.7):
     if cutoff is not None:
-        n_cutoff = int(cutoff*horn_size)
+        n_cutoff = int(cutoff * horn_size)
     else:
         n_cutoff = 15
-    matrix = np.ones((input_size*horn_size, 4))
+    matrix = np.ones((input_size * horn_size, 4))
     matrix[:, 0] = np.repeat(np.arange(input_size), horn_size)
     matrix[:, 1] = np.tile(np.arange(horn_size), input_size)
 
-    matrix[:, 2] = np.tile( max_w / (n_cutoff + 1.0 + np.arange(horn_size)), input_size)
+    matrix[:, 2] = np.tile(max_w / (n_cutoff + 1.0 + np.arange(horn_size)), input_size)
 
     return matrix
 
-def output_connection_list(kenyon_size, decision_size, prob_active,
-                           active_weight, inactive_scaling, seed=1, clip_to=np.inf):
-    matrix = np.ones((kenyon_size * decision_size, 4))
+
+def output_connection_list(kenyon_size, decision_size, prob_active, active_weight,
+                           inactive_scaling, delay=1, seed=1, clip_to=np.inf):
+    matrix = np.ones((kenyon_size * decision_size, 4)) * delay
     matrix[:, 0] = np.repeat(np.arange(kenyon_size), decision_size)
     matrix[:, 1] = np.tile(np.arange(decision_size), kenyon_size)
 
     np.random.seed(seed)
 
     inactive_weight = active_weight * inactive_scaling
-    matrix[:, 2] = np.clip(np.random.normal(inactive_weight, inactive_weight * 0.1,
-                                    size=(kenyon_size * decision_size)),
+    matrix[:, 2] = np.clip(np.random.normal(inactive_weight, inactive_weight * 0.05,
+                                            size=(kenyon_size * decision_size)),
                            0, clip_to)
 
     dice = np.random.uniform(0., 1., size=(kenyon_size * decision_size))
     active = np.where(dice <= prob_active)[0]
-    matrix[active, 2] = np.clip(np.random.normal(active_weight, active_weight * 0.5,
-                                         size=active.shape),
+    matrix[active, 2] = np.clip(np.random.normal(active_weight, active_weight * 0.3,
+                                                 size=active.shape),
                                 0, clip_to)
 
     np.random.seed()
     # pprint(np.where(matrix[:, 2] < 0.0))
     return matrix
+
 
 def args_to_str(arguments):
     d = vars(arguments)
@@ -63,6 +65,7 @@ def args_to_str(arguments):
 
     return '_'.join(arglist)
 
+
 args = get_args()
 pprint(args)
 
@@ -71,7 +74,7 @@ backend = args.backend
 neuron_class = 'IF_cond_exp'
 neuron_class = 'IF_curr_exp'
 # heidelberg's brainscales seems to like these params
-e_rev = 92 #mV
+e_rev = 92  # mV
 # e_rev = 500.0 #mV
 
 if neuron_class == 'IF_cond_exp':
@@ -94,37 +97,43 @@ if neuron_class == 'IF_cond_exp':
 else:
     base_params = {
         'cm': 0.2,  # nF
-        'v_reset': -100.,  # mV
+        'v_reset': -75.,  # mV
         'v_rest': -65.,  # mV
         'v_thresh': -50.,  # mV
         # 'e_rev_I': -e_rev, #mV
         # 'e_rev_E': 0.,#e_rev, #mV
-        'tau_m': 10.,  # ms
-        'tau_refrac': 2.,  # ms
-        'tau_syn_E': 2.0, # ms
-        'tau_syn_I': 5.0, # ms
+        'tau_m': 5.,  # ms
+        'tau_refrac': 5.,  # ms
+        'tau_syn_E': 2.0,  # ms
+        'tau_syn_I': 5.0,  # ms
     }
 
 kenyon_parameters = base_params.copy()
-kenyon_parameters['tau_syn_E'] = 1.0#ms
-kenyon_parameters['tau_syn_I'] = 2.0#ms
+kenyon_parameters['tau_syn_E'] = 1.0  # ms
+kenyon_parameters['tau_syn_I'] = 2.0  # ms
+kenyon_parameters['v_thresh'] = np.random.normal(-50.0, 1.0, size=args.nKC)
 
 horn_parameters = base_params.copy()
 horn_parameters['tau_m'] = 5.0
-horn_parameters['tau_syn_E'] = 1.0#ms
+horn_parameters['tau_syn_E'] = 1.0  # ms
 # horn_parameters['v_thresh'] = [-50.0 + float(i) for i in range(args.nLH)]
 # print(horn_parameters['v_thresh'])
 
 decision_parameters = base_params.copy()
-decision_parameters['tau_syn_E'] = 1.0 #ms
+decision_parameters['tau_syn_E'] = 1.0  # ms
 # decision_parameters['tau_syn_I'] = 2.5 #ms
-decision_parameters['tau_syn_I'] = 1.0 #ms
+decision_parameters['tau_syn_I'] = 1.0  # ms
 decision_parameters['tau_refrac'] = 5.0
-decision_parameters['tau_m'] = 8.0
+decision_parameters['tau_m'] = 5.0
+decision_parameters['v_reset'] = -100.0
+np.random.seed(321)
+# decision_parameters['v_thresh'] = np.random.normal(-50.0, 5.0, size=args.nDN)
+# decision_parameters['v_reset'] = np.random.normal(-100.0, 10.0, size=args.nDN)
+np.random.seed()
 
 fb_parameters = base_params.copy()
-fb_parameters['tau_syn_E'] = 1.0 #ms
-fb_parameters['tau_syn_I'] = 1.0 #ms
+fb_parameters['tau_syn_E'] = 1.0  # ms
+fb_parameters['tau_syn_I'] = 1.0  # ms
 fb_parameters['tau_refrac'] = 10.0
 
 neuron_params = {
@@ -135,16 +144,15 @@ neuron_params = {
 
 W2S = args.w2s
 if neuron_class == 'IF_curr_exp':
-    W2S *= 0.6/0.0025
+    W2S *= 0.6 / 0.0025
 
 # sample_dt, start_dt, max_rand_dt = 10, 5, 2
-sample_dt, start_dt, max_rand_dt = 50, 25, 2
+sample_dt, start_dt, max_rand_dt = 50, 5, 0
 sim_time = sample_dt * args.nSamplesAL * args.nPatternsAL
 timestep = 1.0 if bool(1) else 0.1
 regenerate = args.regenerateSamples
 record_all = args.recordAllOutputs
 fixed_loops = args.fixedNumLoops
-
 
 sys.stdout.write('Creating input patterns\n')
 sys.stdout.flush()
@@ -156,14 +164,16 @@ sys.stdout.write('\t\tdone with input vectors\n')
 sys.stdout.flush()
 
 samples = generate_samples(input_vecs, args.nSamplesAL, args.probNoiseSamplesAL, seed=234,
-                           method='random', regenerate=regenerate)
+                           # method='random',
+                           method='exact',
+                           regenerate=regenerate)
 # pprint(samples)
 sys.stdout.write('\t\tdone with samples\n')
 sys.stdout.flush()
 
 sample_indices, spike_times = samples_to_spike_times(samples, sample_dt, start_dt, max_rand_dt,
-                                randomize_samples=args.randomizeSamplesAL, seed=345,
-                                regenerate=regenerate)
+                                                     randomize_samples=args.randomizeSamplesAL, seed=345,
+                                                     regenerate=regenerate)
 
 high_dt = 3
 low_freq, high_freq = 10, 100
@@ -201,10 +211,8 @@ pynnx._sim.setup(timestep=timestep, min_delay=timestep,
 sys.stdout.write('Done!\tCreating simulator abstraction\n\n')
 sys.stdout.flush()
 
-
 sys.stdout.write('Creating populations\n')
 sys.stdout.flush()
-
 
 populations = {
     'antenna': pynnx.Pop(args.nAL, 'SpikeSourceArray',
@@ -216,7 +224,7 @@ populations = {
     'decision': pynnx.Pop(args.nDN, neuron_class,
                           decision_parameters, label='Decision Neurons'),
     'noise': pynnx.Pop(args.nDN, 'SpikeSourcePoisson',
-                       {'rate': 1.0, 'start': 0, 'duration': np.floor(sim_time*0.3)},
+                       {'rate': 10.0, 'start': 0, 'duration': np.floor(sim_time * 0.3)},
                        label='decision noise'),
     'tick': pynnx.Pop(1, 'SpikeSourceArray',
                       {'spike_times': tick_spikes}, label='Tick Neurons'),
@@ -225,33 +233,37 @@ populations = {
 }
 
 pynnx.set_recording(populations['decision'], 'spikes')
+np.random.seed(333)
+populations['decision'].initialize(v=np.random.normal(-90.0, 20.0, size=args.nDN))
 pynnx.set_recording(populations['kenyon'], 'spikes')
 if record_all:
     pynnx.set_recording(populations['horn'], 'spikes')
     pynnx.set_recording(populations['feedback'], 'spikes')
     pynnx.set_recording(populations['decision'], 'v')
+    pynnx.set_recording(populations['kenyon'], 'v')
+
 
 sys.stdout.write('Creating projections\n')
 sys.stdout.flush()
 
 if neuron_class == 'IF_cond_exp':
     static_w = {
-        'AL to KC': W2S * 1.5 * (100.0/float(args.nAL)),
+        'AL to KC': W2S * 1.5 * (100.0 / float(args.nAL)),
         # 'AL to LH': W2S*(1./(args.nAL*args.probAL)),
         # 'AL to LH': W2S*(0.787 * (100.0/float(args.nAL))),
-        'AL to LH': W2S*(10.0 * (100.0/float(args.nAL))),
+        'AL to LH': W2S * (10.0 * (100.0 / float(args.nAL))),
 
-        'LH to KC': W2S*(0.25 * (20.0/float(args.nLH))),
+        'LH to KC': W2S * (0.25 * (20.0 / float(args.nLH))),
 
-        'KC to KC': W2S*(5.0 * (2500.0/float(args.nKC))),
+        'KC to KC': W2S * (5.0 * (2500.0 / float(args.nKC))),
 
-        'KC to DN': W2S*(2.0 * (2500.0/float(args.nKC))),
+        'KC to DN': W2S * (2.0 * (2500.0 / float(args.nKC))),
         # 'KC to DN': W2S*(2.0 * (2500.0/float(args.nKC))),
         # 'DN to DN': W2S*(0.4 * (100.0/float(args.nDN))),
-        'DN to DN': W2S*(10.0 * (100.0/float(args.nDN))),
+        'DN to DN': W2S * (10.0 * (100.0 / float(args.nDN))),
         # 'DN to DN': W2S*(1./1.),
         # 'DN to DN': W2S*(1./(args.nDN)),
-        'NS to DN': W2S * (0.5 * (100.0/float(args.nDN))),
+        'NS to DN': W2S * (0.5 * (100.0 / float(args.nDN))),
 
         'NS to KC': W2S * (5.0 * (2500.0 / float(args.nKC))),
 
@@ -262,53 +274,58 @@ if neuron_class == 'IF_cond_exp':
     }
 else:
     static_w = {
-        'AL to KC': W2S * 1.0 * (100.0/float(args.nAL)),
+        'AL to KC': W2S * 1.0 * (100.0 / float(args.nAL)),
         # 'AL to LH': W2S*(1./(args.nAL*args.probAL)),
         # 'AL to LH': W2S*(0.787 * (100.0/float(args.nAL))),
-        'AL to LH': W2S*(7.0 * (100.0/float(args.nAL))),
+        'AL to LH': W2S * (5.5 * (100.0 / float(args.nAL))),
         ### inhibitory
-        'LH to KC': -W2S*(0.2 * (20.0/float(args.nLH))),
+        'LH to KC': -W2S * (0.2 * (20.0 / float(args.nLH))),
         ### inhibitory
-        'KC to KC': -W2S*(0.2 * (2500.0/float(args.nKC))),
+        'KC to KC': -W2S * (0.2 * (2500.0 / float(args.nKC))),
 
-        'KC to DN': W2S*(2.0 * (2500.0/float(args.nKC))),
+        'KC to DN': W2S * (1.0 * (2500.0 / float(args.nKC))),
         # 'KC to DN': W2S*(2.0 * (2500.0/float(args.nKC))),
 
-        'iKC to DN': -W2S * (0.5 * (2500.0 / float(args.nKC))),
+        'iKC to DN': -W2S * (1.0 * (2500.0 / float(args.nKC))),
         ### inhibitory
         # 'DN to DN': W2S*(0.4 * (100.0/float(args.nDN))),
-        'DN to DN': -W2S*(1.0 * (100.0/float(args.nDN))),
+        'DN to DN': -W2S * (1.0 * (100.0 / float(args.nDN))),
         # 'DN to DN': W2S*(1./1.),
         # 'DN to DN': W2S*(1./(args.nDN)),
-        'NS to DN': W2S * 8.0 * (1.0 * (100.0 / float(args.nDN))),
+        'NS to DN': W2S * 3.0 * (1.0 * (100.0 / float(args.nDN))),
 
-        'DN to FB': W2S*(5.0 * (100.0/float(args.nDN))),
-        'FB to DN': W2S*(10.0 * (100.0/float(args.nDN))),
-        'TK to FB': W2S*(5.0 * (100.0/float(args.nDN))),
+        'DN to FB': W2S * (5.0 * (100.0 / float(args.nDN))),
+        'FB to DN': W2S * (10.0 * (100.0 / float(args.nDN))),
+        'TK to FB': W2S * (5.0 * (100.0 / float(args.nDN))),
 
     }
 
 rand_w = {
-    'AL to KC': pynnx.sim.RandomDistribution('normal',
-                    (static_w['AL to KC'], static_w['AL to KC']*0.1),
-                    pynnx.sim.NumpyRNG(seed=1)),
+    'AL to KC': static_w['AL to KC'],
+    # 'AL to KC': pynnx.sim.RandomDistribution('normal',
+    #                                          (static_w['AL to KC'], static_w['AL to KC'] * 0.1),
+    #                                          pynnx.sim.NumpyRNG(seed=1)),
 }
 
-w_max = (static_w['KC to DN']*1.0) * 1.
+w_max = (static_w['KC to DN'] * 1.0) * 1.
 print("w_max ", w_max)
 gain_list = gain_control_list(args.nAL, args.nLH, static_w['AL to LH'],
                               # cutoff=None
                               )
 
 out_list = output_connection_list(args.nKC, args.nDN, args.probKC2DN,
-                                  static_w['KC to DN'], args.inactiveScale,
-                                  seed=123456, clip_to=w_max)
+                                  static_w['KC to DN'],
+                                  # 0.,
+                                  args.inactiveScale,
+                                  delay=2, seed=123456,
+                                  clip_to=np.inf
+                                  # clip_to=w_max
+                                  )
 
-
-t_plus = 2.0
+t_plus = 5.0
 t_minus = 20.0
-a_plus = 0.001
-a_minus = 0.005
+a_plus = 0.01
+a_minus = 0.05
 
 stdp = {
     'timing_dependence': {
@@ -319,7 +336,7 @@ stdp = {
                    },
     },
     'weight_dependence': {
-        'name':'AdditiveWeightDependence',
+        'name': 'AdditiveWeightDependence',
         # 'name':'MultiplicativeWeightDependence',
         'params': {
             # 'w_min': (static_w['KC to DN'])/10.0,
@@ -340,7 +357,7 @@ stdp_inv = {
                    },
     },
     'weight_dependence': {
-        'name':'AdditiveWeightDependence',
+        'name': 'AdditiveWeightDependence',
         # 'name':'MultiplicativeWeightDependence',
         'params': {
             # 'w_min': (static_w['KC to DN'])/10.0,
@@ -354,7 +371,7 @@ stdp_inv = {
 
 projections = {
     'AL to KC': pynnx.Proj(populations['antenna'], populations['kenyon'],
-                           'FixedProbabilityConnector', weights=rand_w['AL to KC'], delays=3.0,
+                           'FixedProbabilityConnector', weights=rand_w['AL to KC'], delays=4.0,
                            conn_params={'p_connect': args.probAL2KC}, label='AL to KC'),
 
     # 'AL to LH': pynnx.Proj(populations['antenna'], populations['horn'],
@@ -365,14 +382,14 @@ projections = {
                            'FromListConnector', weights=None, delays=None,
                            conn_params={'conn_list': gain_list}, label='AL to LH'),
 
-    'LH to KC': pynnx.Proj(populations['horn'], populations['kenyon'],
-                           'AllToAllConnector', weights=static_w['LH to KC'], delays=timestep,
-                           conn_params={}, target='inhibitory', label='LH to KC'),
+    # 'LH to KC': pynnx.Proj(populations['horn'], populations['kenyon'],
+    #                        'AllToAllConnector', weights=static_w['LH to KC'], delays=timestep,
+    #                        conn_params={}, target='inhibitory', label='LH to KC'),
 
     ### Inhibitory feedback --- kenyon cells
-    'KC to KC': pynnx.Proj(populations['kenyon'], populations['kenyon'],
-                            'FixedProbabilityConnector', weights=static_w['KC to KC'], delays=timestep,
-                            conn_params={'p_connect': 0.8}, target='inhibitory', label='KC to KC'),
+    # 'KC to KC': pynnx.Proj(populations['kenyon'], populations['kenyon'],
+    #                         'FixedProbabilityConnector', weights=static_w['KC to KC'], delays=timestep,
+    #                         conn_params={'p_connect': 0.8}, target='inhibitory', label='KC to KC'),
 
     'KC to DN': pynnx.Proj(populations['kenyon'], populations['decision'],
                            'FromListConnector', weights=None, delays=None,
@@ -384,23 +401,23 @@ projections = {
     #                        conn_params={'conn_list': out_list}, label='KC to DN',
     #                        stdp=stdp_inv),
 
-    'iKC to DN': pynnx.Proj(populations['kenyon'], populations['decision'],
-                           'FixedProbabilityConnector', weights=static_w['iKC to DN'], delays=timestep,
-                           conn_params={'p_connect': 0.01}, target='inhibitory', label='iKC to DN'),
+    # 'iKC to DN': pynnx.Proj(populations['kenyon'], populations['decision'],
+    #                        'FixedProbabilityConnector', weights=static_w['iKC to DN'], delays=timestep,
+    #                        conn_params={'p_connect': 0.1}, target='inhibitory', label='iKC to DN'),
 
     ### Inhibitory feedback --- decision neurons
-    'DN to DN': pynnx.Proj(populations['decision'], populations['decision'],
-                           'FixedProbabilityConnector', weights=static_w['DN to DN'], delays=1.0,
-                           conn_params={'p_connect': 0.8}, target='inhibitory', label='DN to DN'),
-
     # 'DN to DN': pynnx.Proj(populations['decision'], populations['decision'],
-    #                        'AllToAllConnector', weights=static_w['DN to DN'], delays=timestep,
-    #                        conn_params={}, target='inhibitory', label='DN to DN'),
+    #                        'FixedProbabilityConnector', weights=static_w['DN to DN'], delays=1.0,
+    #                        conn_params={'p_connect': 0.8}, target='inhibitory', label='DN to DN'),
 
-    # 'NS to DN': pynnx.Proj(populations['noise'], populations['decision'],
-    #                        'FixedProbabilityConnector', weights=static_w['NS to DN'], delays=1.0,
-    #                        conn_params={'p_connect': 0.01}, target='excitatory',
-    #                        label='NS to DN'),
+    'DN to DN': pynnx.Proj(populations['decision'], populations['decision'],
+                           'AllToAllConnector', weights=static_w['DN to DN'], delays=timestep,
+                           conn_params={}, target='inhibitory', label='DN to DN'),
+
+    'NS to DN': pynnx.Proj(populations['noise'], populations['decision'],
+                           'FixedProbabilityConnector', weights=static_w['NS to DN'], delays=1.0,
+                           conn_params={'p_connect': 0.01}, target='excitatory',
+                           label='NS to DN'),
 
     # 'NS to KC': pynnx.Proj(populations['noise'], populations['kenyon'],
     #                        'FixedProbabilityConnector', weights=static_w['NS to KC'], delays=1.0,
@@ -412,7 +429,7 @@ projections = {
                            target='excitatory', label='DN to FB'),
 
     'FB to DN': pynnx.Proj(populations['feedback'], populations['decision'],
-                           'OneToOneConnector', weights=static_w['FB to DN'], delays=15.0,
+                           'OneToOneConnector', weights=static_w['FB to DN'], delays=10.0,
                            target='excitatory', label='FB to DN'),
 
     'TK to FB': pynnx.Proj(populations['tick'], populations['feedback'],
@@ -424,8 +441,6 @@ projections = {
 sys.stdout.write('Running simulation\n')
 sys.stdout.flush()
 
-
-
 starting_weights = np.zeros((args.nKC, args.nDN))
 for i, j, v, d in out_list:
     starting_weights[int(i), int(j)] = v
@@ -434,11 +449,11 @@ weights = [starting_weights]
 
 if fixed_loops == 0:
     # weight_sample_dt = 10.
-    weight_sample_dt = float(sample_dt*(args.nSamplesAL*0.1))
-    n_loops = np.ceil(sim_time/weight_sample_dt)
+    weight_sample_dt = float(sample_dt * (args.nSamplesAL * 0.1))
+    n_loops = np.ceil(sim_time / weight_sample_dt)
 else:
     n_loops = fixed_loops
-    weight_sample_dt = np.ceil(sim_time/float(n_loops))
+    weight_sample_dt = np.ceil(sim_time / float(n_loops))
 
 print("num loops = {}\ttime per loop {}".format(n_loops, weight_sample_dt))
 
@@ -457,8 +472,7 @@ secs_to_run -= mins_to_run * 60
 hours_to_run = mins_to_run // 60
 mins_to_run -= hours_to_run * 60
 
-
-sys.stdout.write('\n\nDone!\tRunning simulation - lasted {}h: {}m: {}s\n\n'.\
+sys.stdout.write('\n\nDone!\tRunning simulation - lasted {}h: {}m: {}s\n\n'. \
                  format(hours_to_run, mins_to_run, secs_to_run))
 sys.stdout.flush()
 
@@ -478,7 +492,6 @@ if record_all:
     sys.stdout.flush()
     horn_spikes = pynnx.get_record(populations['horn'], 'spikes')
 
-
     sys.stdout.write('\tFeedback\n')
     sys.stdout.flush()
     fb_spikes = pynnx.get_record(populations['feedback'], 'spikes')
@@ -486,15 +499,23 @@ else:
     horn_spikes = [[]]
     fb_spikes = [[]]
 
-
 sys.stdout.write('Done!\tGetting spikes\n\n')
 sys.stdout.flush()
 
+
 if record_all:
+    sys.stdout.write('Getting voltages\n')
+    sys.stdout.flush()
+
     dn_voltage = pynnx.get_record(populations['decision'], 'v')
+    kc_voltage = pynnx.get_record(populations['kenyon'], 'v')
+
+    sys.stdout.write('Done!\tGetting voltages\n\n')
+    sys.stdout.flush()
+
 else:
     dn_voltage = [np.array([[0, 0]])]
-
+    kc_voltage = [np.array([[0, 0]])]
 
 sys.stdout.write('Getting weights:\n')
 sys.stdout.flush()
@@ -510,41 +531,35 @@ else:
 sys.stdout.write('Done!\t Getting weights\n\n')
 sys.stdout.flush()
 
-
 pynnx.end()
-
 
 sys.stdout.write('Saving experiment\n')
 sys.stdout.flush()
 # fname = 'mbody-'+args_to_str(args)+'.npz'
 fname = 'mbody-experiment.npz'
 np.savez_compressed(fname, args=args, sim_time=sim_time,
-    input_spikes=spike_times, input_vectors=input_vecs,
-    input_samples=samples, sample_indices=sample_indices,
-    output_start_connections=out_list, lateral_horn_connections=gain_list,
-    output_end_weights=final_weights, output_end_weights_inv=final_weights_inv,
-    static_weights=static_w, stdp_params=stdp,
-    kenyon_spikes=k_spikes, decision_spikes=out_spikes, horn_spikes=horn_spikes,
-    neuron_parameters=neuron_params,
-    sample_dt=sample_dt, start_dt=start_dt, max_rand_dt=max_rand_dt,
-    dn_voltage=dn_voltage,
-    high_dt=high_dt,
-    low_freq=low_freq, high_freq=high_freq,
-    weights=weights, weight_sample_dt=weight_sample_dt,
-    timestep=timestep,
-    post_horn_weights=post_horn,
-    tick_spikes=tick_spikes,
-    fb_spikes=fb_spikes,
-    n_test_samples=n_test_samples,
-)
+                    input_spikes=spike_times, input_vectors=input_vecs,
+                    input_samples=samples, sample_indices=sample_indices,
+                    output_start_connections=out_list, lateral_horn_connections=gain_list,
+                    output_end_weights=final_weights, output_end_weights_inv=final_weights_inv,
+                    static_weights=static_w, stdp_params=stdp,
+                    kenyon_spikes=k_spikes, decision_spikes=out_spikes, horn_spikes=horn_spikes,
+                    neuron_parameters=neuron_params,
+                    sample_dt=sample_dt, start_dt=start_dt, max_rand_dt=max_rand_dt,
+                    dn_voltage=dn_voltage, kc_voltage=kc_voltage,
+                    high_dt=high_dt,
+                    low_freq=low_freq, high_freq=high_freq,
+                    weights=weights, weight_sample_dt=weight_sample_dt,
+                    timestep=timestep,
+                    post_horn_weights=post_horn,
+                    tick_spikes=tick_spikes,
+                    fb_spikes=fb_spikes,
+                    n_test_samples=n_test_samples,
+                    )
 sys.stdout.write('Done!\tSaving experiment\n\n')
 sys.stdout.flush()
-
-
 
 if args.renderSpikes:
     render_spikes(k_spikes, 'Kenyon activity', 'kenyon_activity.pdf')
 
     render_spikes(out_spikes, 'Output activity', 'output_activity.pdf')
-
-

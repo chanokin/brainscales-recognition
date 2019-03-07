@@ -104,6 +104,7 @@ def generate_spike_times_poisson(input_vectors, num_samples, sample_dt, start_dt
 
     return indices, spike_times
 
+
 def generate_samples(input_vectors, num_samples, prob_noise, seed=1, method='exact', regenerate=False):
     """method='all' means randomly choose indices where we flip 1s and 0s with probability = prob_noise"""
     np.random.seed(seed)
@@ -123,12 +124,12 @@ def generate_samples(input_vectors, num_samples, prob_noise, seed=1, method='exa
             base_flips = int(np.mean(input_vectors.sum(axis=1)) * prob_noise)
             for j in range(num_samples):
                 # flip zeros to ones
-                n_flips = base_flips + np.random.randint(-1, 2)
+                n_flips = base_flips #+ np.random.randint(-1, 2)
                 indices = np.random.choice(np.where(samp[j] == 0)[0], size=n_flips, replace=False)
                 samp[j, indices] = 1
 
                 #flip ones to zeros
-                n_flips = base_flips + np.random.randint(-1, 2)
+                n_flips = base_flips + np.random.randint(0, 3)
                 indices = np.random.choice(np.where(samp[j] == 1)[0], size=n_flips, replace=False)
                 samp[j, indices] = 0
 
