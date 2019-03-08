@@ -44,7 +44,7 @@ def output_connection_list(kenyon_size, decision_size, prob_active, active_weigh
 
     dice = np.random.uniform(0., 1., size=(kenyon_size * decision_size))
     active = np.where(dice <= prob_active)[0]
-    matrix[active, 2] = np.clip(np.random.normal(active_weight, active_weight * 0.3,
+    matrix[active, 2] = np.clip(np.random.normal(active_weight, active_weight * 0.4,
                                                  size=active.shape),
                                 0, clip_to)
 
@@ -111,7 +111,7 @@ else:
 kenyon_parameters = base_params.copy()
 kenyon_parameters['tau_syn_E'] = 1.0  # ms
 kenyon_parameters['tau_syn_I'] = 2.0  # ms
-kenyon_parameters['v_thresh'] = np.random.normal(-50.0, 1.0, size=args.nKC)
+kenyon_parameters['v_thresh'] = np.random.normal(-53.0, 1.0, size=args.nKC)
 
 horn_parameters = base_params.copy()
 horn_parameters['tau_m'] = 5.0
@@ -224,7 +224,7 @@ populations = {
     'decision': pynnx.Pop(args.nDN, neuron_class,
                           decision_parameters, label='Decision Neurons'),
     'noise': pynnx.Pop(args.nDN, 'SpikeSourcePoisson',
-                       {'rate': 10.0, 'start': 0, 'duration': np.floor(sim_time * 0.3)},
+                       {'rate': 10.0, 'start': sample_dt, 'duration': np.floor(sim_time * 0.5)},
                        label='decision noise'),
     'tick': pynnx.Pop(1, 'SpikeSourceArray',
                       {'spike_times': tick_spikes}, label='Tick Neurons'),
@@ -277,22 +277,22 @@ else:
         'AL to KC': W2S * 1.0 * (100.0 / float(args.nAL)),
         # 'AL to LH': W2S*(1./(args.nAL*args.probAL)),
         # 'AL to LH': W2S*(0.787 * (100.0/float(args.nAL))),
-        'AL to LH': W2S * (5.5 * (100.0 / float(args.nAL))),
+        'AL to LH': W2S * (5.75 * (100.0 / float(args.nAL))),
         ### inhibitory
         'LH to KC': -W2S * (0.2 * (20.0 / float(args.nLH))),
         ### inhibitory
         'KC to KC': -W2S * (0.2 * (2500.0 / float(args.nKC))),
 
-        'KC to DN': W2S * (1.0 * (2500.0 / float(args.nKC))),
-        # 'KC to DN': W2S*(2.0 * (2500.0/float(args.nKC))),
+        # 'KC to DN': W2S * (1.2 * (2500.0 / float(args.nKC))),
+        'KC to DN': W2S*(0.8 * (2500.0/float(args.nKC))),
 
         'iKC to DN': -W2S * (1.0 * (2500.0 / float(args.nKC))),
         ### inhibitory
         # 'DN to DN': W2S*(0.4 * (100.0/float(args.nDN))),
-        'DN to DN': -W2S * (1.0 * (100.0 / float(args.nDN))),
+        'DN to DN': -W2S * (5.0 * (100.0 / float(args.nDN))),
         # 'DN to DN': W2S*(1./1.),
         # 'DN to DN': W2S*(1./(args.nDN)),
-        'NS to DN': W2S * 3.0 * (1.0 * (100.0 / float(args.nDN))),
+        'NS to DN': W2S * (3.0 * (100.0 / float(args.nDN))),
 
         'DN to FB': W2S * (5.0 * (100.0 / float(args.nDN))),
         'FB to DN': W2S * (10.0 * (100.0 / float(args.nDN))),
@@ -318,11 +318,11 @@ out_list = output_connection_list(args.nKC, args.nDN, args.probKC2DN,
                                   # 0.,
                                   args.inactiveScale,
                                   delay=2, seed=123456,
-                                  clip_to=np.inf
-                                  # clip_to=w_max
+                                  # clip_to=np.inf
+                                  clip_to=w_max
                                   )
 
-t_plus = 5.0
+t_plus = 3.0
 t_minus = 20.0
 a_plus = 0.01
 a_minus = 0.05
@@ -382,9 +382,9 @@ projections = {
                            'FromListConnector', weights=None, delays=None,
                            conn_params={'conn_list': gain_list}, label='AL to LH'),
 
-    # 'LH to KC': pynnx.Proj(populations['horn'], populations['kenyon'],
-    #                        'AllToAllConnector', weights=static_w['LH to KC'], delays=timestep,
-    #                        conn_params={}, target='inhibitory', label='LH to KC'),
+    'LH to KC': pynnx.Proj(populations['horn'], populations['kenyon'],
+                           'AllToAllConnector', weights=static_w['LH to KC'], delays=timestep,
+                           conn_params={}, target='inhibitory', label='LH to KC'),
 
     ### Inhibitory feedback --- kenyon cells
     # 'KC to KC': pynnx.Proj(populations['kenyon'], populations['kenyon'],
@@ -416,8 +416,13 @@ projections = {
 
     'NS to DN': pynnx.Proj(populations['noise'], populations['decision'],
                            'FixedProbabilityConnector', weights=static_w['NS to DN'], delays=1.0,
-                           conn_params={'p_connect': 0.01}, target='excitatory',
+                           conn_params={'p_connect': 0.05}, target='excitatory',
                            label='NS to DN'),
+
+    # 'iNS to DN': pynnx.Proj(populations['noise'], populations['decision'],
+    #                        'FixedProbabilityConnector', weights=-static_w['NS to DN'], delays=1.0,
+    #                        conn_params={'p_connect': 0.05}, target='inhibitory',
+    #                        label='iNS to DN'),
 
     # 'NS to KC': pynnx.Proj(populations['noise'], populations['kenyon'],
     #                        'FixedProbabilityConnector', weights=static_w['NS to KC'], delays=1.0,

@@ -213,6 +213,8 @@ class PyNNAL(object):
         _dep = self._get_obj(config['name'])
         return _dep(**config['params'])
 
+
+
     def parse_conn_params(self, param):
         if isinstance(param, dict):
             dist = param['type']
