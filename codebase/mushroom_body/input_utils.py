@@ -119,6 +119,9 @@ def generate_samples(input_vectors, num_samples, prob_noise, seed=1, method='exa
     samples = None
 
     for i in range(input_vectors.shape[0]):
+        sys.stdout.write('\r\t\t%6.2f%%' % (100 * ((i + 1.0) / input_vectors.shape[0])))
+        sys.stdout.flush()
+
         samp = np.tile(input_vectors[i, :], (num_samples, 1)).astype('int')
         if method == 'random':
             base_flips = int(np.mean(input_vectors.sum(axis=1)) * prob_noise)
@@ -156,6 +159,9 @@ def generate_samples(input_vectors, num_samples, prob_noise, seed=1, method='exa
     np.random.seed()
 
     np.savez_compressed(fname, samples=samples)
+
+    sys.stdout.write('\n')
+    sys.stdout.flush()
 
     return samples
 

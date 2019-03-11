@@ -7,6 +7,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import sys
 import time
+import datetime
 from spikevo import *
 from spikevo.pynn_transforms import PyNNAL
 import argparse
@@ -52,6 +53,18 @@ def output_connection_list(kenyon_size, decision_size, prob_active, active_weigh
     # pprint(np.where(matrix[:, 2] < 0.0))
     return matrix
 
+
+def output_pairing_connection_list(decision_size, neighbour_distance, weight, delay=1):
+    conn_list = []
+    half_dist = neighbour_distance // 2
+    for nid in range(decision_size):
+        for ndist in range(-half_dist, half_dist + 1):
+            neighbour = nid + ndist
+            if neighbour < 0 or ndist == 0 or neighbour >= decision_size:
+                continue
+            conn_list.append([nid, neighbour, weight, delay])
+
+    return conn_list
 
 def args_to_str(arguments):
     d = vars(arguments)
@@ -157,10 +170,17 @@ fixed_loops = args.fixedNumLoops
 sys.stdout.write('Creating input patterns\n')
 sys.stdout.flush()
 
+sys.stdout.write('\tGenerating input vectors\n')
+sys.stdout.flush()
+
 input_vecs = generate_input_vectors(args.nPatternsAL, args.nAL, args.probAL, seed=123)
 # input_vecs = generate_input_vectors(10, 100, 0.1)
 # pprint(input_vecs)
-sys.stdout.write('\t\tdone with input vectors\n')
+sys.stdout.write('\t\tDone with input vectors\n')
+sys.stdout.flush()
+
+
+sys.stdout.write('\tGenerating samples\n')
 sys.stdout.flush()
 
 samples = generate_samples(input_vecs, args.nSamplesAL, args.probNoiseSamplesAL, seed=234,
@@ -181,6 +201,9 @@ low_freq, high_freq = 10, 100
 # sample_indices, spike_times = generate_spike_times_poisson(input_vecs, args.nSamplesAL,
 #                                 sample_dt, start_dt, high_dt, high_freq, low_freq,
 #                                 seed=234, randomize_samples=True, regenerate=bool(0))
+
+sys.stdout.write('\tGenerating spike times\n')
+sys.stdout.flush()
 
 n_test_samples = min(1000, np.round(args.nSamplesAL * args.nPatternsAL * 0.1))
 tick_spikes = generate_tick_spikes(samples, sample_dt, start_dt, n_test_samples, delay=20)
@@ -224,7 +247,7 @@ populations = {
     'decision': pynnx.Pop(args.nDN, neuron_class,
                           decision_parameters, label='Decision Neurons'),
     'noise': pynnx.Pop(args.nDN, 'SpikeSourcePoisson',
-                       {'rate': 10.0, 'start': sample_dt, 'duration': np.floor(sim_time * 0.5)},
+                       {'rate': 20.0, 'start': start_dt, 'duration': np.floor(sim_time * 0.333)},
                        label='decision noise'),
     'tick': pynnx.Pop(1, 'SpikeSourceArray',
                       {'spike_times': tick_spikes}, label='Tick Neurons'),
@@ -284,12 +307,15 @@ else:
         'KC to KC': -W2S * (0.2 * (2500.0 / float(args.nKC))),
 
         # 'KC to DN': W2S * (1.2 * (2500.0 / float(args.nKC))),
-        'KC to DN': W2S*(0.8 * (2500.0/float(args.nKC))),
+        # 'KC to DN': W2S*(0.4 * (2500.0/float(args.nKC))),
+        'KC to DN': W2S*(0.7 * (2500.0/float(args.nKC))),
 
         'iKC to DN': -W2S * (1.0 * (2500.0 / float(args.nKC))),
         ### inhibitory
         # 'DN to DN': W2S*(0.4 * (100.0/float(args.nDN))),
         'DN to DN': -W2S * (5.0 * (100.0 / float(args.nDN))),
+        'pair DN to DN': W2S * (0.1 * (100.0 / float(args.nDN))),
+
         # 'DN to DN': W2S*(1./1.),
         # 'DN to DN': W2S*(1./(args.nDN)),
         'NS to DN': W2S * (3.0 * (100.0 / float(args.nDN))),
@@ -307,7 +333,7 @@ rand_w = {
     #                                          pynnx.sim.NumpyRNG(seed=1)),
 }
 
-w_max = (static_w['KC to DN'] * 1.0) * 1.
+w_max = (static_w['KC to DN'] * 1.0) * 1.0
 print("w_max ", w_max)
 gain_list = gain_control_list(args.nAL, args.nLH, static_w['AL to LH'],
                               # cutoff=None
@@ -317,15 +343,20 @@ out_list = output_connection_list(args.nKC, args.nDN, args.probKC2DN,
                                   static_w['KC to DN'],
                                   # 0.,
                                   args.inactiveScale,
-                                  delay=2, seed=123456,
+                                  delay=2,
+                                  # seed=None,
+                                  seed=123456,
                                   # clip_to=np.inf
                                   clip_to=w_max
                                   )
 
-t_plus = 3.0
+out_neighbours = output_pairing_connection_list(args.nDN, 11, static_w['pair DN to DN'], delay=1)
+
+t_plus = 5.0
 t_minus = 20.0
 a_plus = 0.01
-a_minus = 0.05
+# a_minus = 0.05
+a_minus = 0.01
 
 stdp = {
     'timing_dependence': {
@@ -414,9 +445,19 @@ projections = {
                            'AllToAllConnector', weights=static_w['DN to DN'], delays=timestep,
                            conn_params={}, target='inhibitory', label='DN to DN'),
 
+    # 'pair DN to DN': pynnx.Proj(populations['decision'], populations['decision'],
+    #                        'FromListConnector', weights=None, delays=None,
+    #                        conn_params={'conn_list': out_neighbours},
+    #                        target='excitatory', label='pair DN to DN'),
+
+    # 'NS to DN': pynnx.Proj(populations['noise'], populations['decision'],
+    #                        'FixedProbabilityConnector', weights=static_w['NS to DN'], delays=1.0,
+    #                        conn_params={'p_connect': 0.05}, target='excitatory',
+    #                        label='NS to DN'),
+
     'NS to DN': pynnx.Proj(populations['noise'], populations['decision'],
-                           'FixedProbabilityConnector', weights=static_w['NS to DN'], delays=1.0,
-                           conn_params={'p_connect': 0.05}, target='excitatory',
+                           'OneToOneConnector', weights=static_w['NS to DN'], delays=1.0,
+                           conn_params={}, target='excitatory',
                            label='NS to DN'),
 
     # 'iNS to DN': pynnx.Proj(populations['noise'], populations['decision'],
@@ -461,10 +502,34 @@ else:
     weight_sample_dt = np.ceil(sim_time / float(n_loops))
 
 print("num loops = {}\ttime per loop {}".format(n_loops, weight_sample_dt))
+now = datetime.datetime.now()
+sys.stdout.write("\tstarting time is {:02d}:{:02d}:{:02d}\n".format(now.hour, now.minute, now.second))
+sys.stdout.flush()
 
 t0 = time.time()
 for loop in np.arange(n_loops):
+    sys.stdout.write("\trunning loop {} of {}\t".format(loop + 1, n_loops))
+    sys.stdout.flush()
+
+    loop_t0 = time.time()
+    now = datetime.datetime.now()
+    sys.stdout.write("starting {:02d}:{:02d}:{:02d}\t".format(now.hour, now.minute, now.second))
+    sys.stdout.flush()
+
+
     pynnx.run(weight_sample_dt)
+
+
+    secs_to_run = time.time() - loop_t0
+    mins_to_run = secs_to_run // 60
+    secs_to_run -= mins_to_run * 60
+    hours_to_run = mins_to_run // 60
+    mins_to_run -= hours_to_run * 60
+    secs_to_run, mins_to_run, hours_to_run = int(secs_to_run), int(mins_to_run), int(hours_to_run)
+
+    sys.stdout.write('lasted {:02d}h: {:02d}m: {:02d}s\n'.format(hours_to_run, mins_to_run, secs_to_run))
+    sys.stdout.flush()
+
     tmp_w = pynnx.get_weights(projections['KC to DN'])
     # print(loop, tmp_w.shape)
     weights.append(tmp_w.flatten())
@@ -476,8 +541,9 @@ mins_to_run = secs_to_run // 60
 secs_to_run -= mins_to_run * 60
 hours_to_run = mins_to_run // 60
 mins_to_run -= hours_to_run * 60
+secs_to_run, mins_to_run, hours_to_run = int(secs_to_run), int(mins_to_run), int(hours_to_run)
 
-sys.stdout.write('\n\nDone!\tRunning simulation - lasted {}h: {}m: {}s\n\n'. \
+sys.stdout.write('\n\nDone!\tRunning simulation - lasted {:02d}h: {:02d}m: {:02d}s\n\n'. \
                  format(hours_to_run, mins_to_run, secs_to_run))
 sys.stdout.flush()
 
