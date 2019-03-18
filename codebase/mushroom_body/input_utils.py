@@ -165,7 +165,7 @@ def generate_samples(input_vectors, num_samples, prob_noise, seed=1, method='exa
 
     return samples
 
-def samples_to_spike_times(samples, sample_dt, start_dt, max_rand_dt, seed=1,
+def samples_to_spike_times(samples, sample_dt, start_dt, max_rand_dt, sim_timestep, seed=1,
     randomize_samples=False, regenerate=False):
 
     fname = 'spike_times_{}_{}_{}_{}_{}.npz'.format(
@@ -175,15 +175,19 @@ def samples_to_spike_times(samples, sample_dt, start_dt, max_rand_dt, seed=1,
         f = np.load(fname)
         return f['indices'], f['spike_times'].tolist()
 
+
+
+    spike_times = [[] for _ in range(samples.shape[-1])]
+    indices = np.arange(samples.shape[0])
+    if randomize_samples:
+        np.random.seed()
+        np.random.shuffle(indices)
+        np.random.seed()
+        np.random.shuffle(indices)
+        # np.random.shuffle(indices)
+
     np.random.seed(seed)
     t = 0
-    spike_times = [[] for _ in range(samples.shape[-1])]
-    if randomize_samples:
-        indices = np.random.choice(np.arange(samples.shape[0]), size=samples.shape[0],
-                    replace=False)
-    else:
-        indices = np.arange(samples.shape[0])
-
     total = float(len(indices))
     for i, idx in enumerate(indices):
         sys.stdout.write('\r\t\t%6.2f%%'%(100*((i+1.0)/total)))
@@ -193,7 +197,10 @@ def samples_to_spike_times(samples, sample_dt, start_dt, max_rand_dt, seed=1,
         active = np.where(samp == 1.)[0]
         # max_start_dt = (sample_dt - start_dt)
         rand_start_dt = 0#np.random.randint(-start_dt, start_dt)
-        ts = t + rand_start_dt + start_dt + np.random.randint(-max_rand_dt, max_rand_dt+1, size=active.size)
+        rand_dt = np.random.randint(-max_rand_dt, max_rand_dt+1, size=active.size).astype('float') \
+                    if max_rand_dt > 0 else np.zeros(active.shape)
+        rand_dt *= sim_timestep
+        ts = t + rand_start_dt + start_dt + rand_dt
         for time_id, neuron_id in enumerate(active):
             if ts[time_id] not in spike_times[neuron_id]:
                 spike_times[neuron_id].append(ts[time_id])
