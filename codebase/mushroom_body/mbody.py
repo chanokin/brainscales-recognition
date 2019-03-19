@@ -174,7 +174,7 @@ if neuron_class == 'IF_curr_exp':
     W2S *= 0.6/ 0.0025
 
 # sample_dt, start_dt, max_rand_dt = 10, 5, 2
-sample_dt, start_dt, max_rand_dt = 50, 5, 1.0
+sample_dt, start_dt, max_rand_dt = 50, 5, 5.0
 sim_time = sample_dt * args.nSamplesAL * args.nPatternsAL
 timestep = 1.0 if bool(0) else 0.1
 regenerate = args.regenerateSamples
@@ -342,7 +342,8 @@ else:
         'KC to KC': -W2S * (0.01 * (2500.0 / float(args.nKC))),
 
         # 'KC to DN': W2S*(0.31 * (2500.0/float(args.nKC))),
-        'KC to DN': W2S * ((0.5 / 1.2) * (2500.0/float(args.nKC))),
+        # 'KC to DN': W2S * ((0.5 / 1.2) * (2500.0/float(args.nKC))),
+        'KC to DN': W2S * ((0.6 / 1.2) * (2500.0/float(args.nKC))),
 
         'iKC to DN': -W2S * (1.0 * (2500.0 / float(args.nKC))),
         ### inhibitory
@@ -370,8 +371,9 @@ rand_w = {
 
 w_max = (static_w['KC to DN'] * 1.0) * 1.2
 # w_max = W2S*(0.5 * (2500.0/float(args.nKC)))
-w_min = -20.0 * w_max
-print("w_min = {}\tw_max = {} ".format(w_min, w_max))
+w_min = 0. * w_max
+# w_min = 0.0 * w_max
+print("\nw_min = {}\tw_max = {}\n".format(w_min, w_max))
 
 gain_list = gain_control_list(args.nAL, args.nLH, static_w['AL to LH'],
                               # cutoff=None
