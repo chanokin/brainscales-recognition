@@ -66,7 +66,7 @@ def output_pairing_connection_list(decision_size, neighbour_distance, weight, de
 
     return conn_list
 
-def args_to_str(arguments, stringable=['nAL', 'nKC', 'nDN', 'probAL', 'probNoiseSamplesAL']):
+def args_to_str(arguments, stringable=['nAL', 'nKC', 'nDN', 'probAL', 'probNoiseSamplesAL', 'nPatternsAL']):
 
     d = vars(arguments)
     arglist = []
