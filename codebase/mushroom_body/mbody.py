@@ -66,17 +66,18 @@ def output_pairing_connection_list(decision_size, neighbour_distance, weight, de
 
     return conn_list
 
-def args_to_str(arguments):
+def args_to_str(arguments, stringable=['nAL', 'nKC', 'nDN', 'probAL', 'probNoiseSamplesAL']):
+
     d = vars(arguments)
     arglist = []
     for arg in d:
         v = str(d[arg])
-        if arg.startswith('render'):
+        if arg not in stringable:
             continue
         v = v.replace('.', 'p')
-        arglist.append('{}={}'.format(arg, v))
+        arglist.append('{}_{}'.format(arg, v))
 
-    return '_'.join(arglist)
+    return '__'.join(arglist)
 
 
 args = get_args()
@@ -174,14 +175,14 @@ if neuron_class == 'IF_curr_exp':
     W2S *= 0.6/ 0.0025
 
 # sample_dt, start_dt, max_rand_dt = 10, 5, 2
-sample_dt, start_dt, max_rand_dt = 50, 5, 5.0
+sample_dt, start_dt, max_rand_dt = 50, 5, 2.0
 sim_time = sample_dt * args.nSamplesAL * args.nPatternsAL
 timestep = 1.0 if bool(0) else 0.1
 regenerate = args.regenerateSamples
 record_all = args.recordAllOutputs and args.nSamplesAL <= 50
 fixed_loops = args.fixedNumLoops
 n_explore_samples = min(args.nPatternsAL * 10, np.round(args.nSamplesAL * args.nPatternsAL * 0.01))
-n_exciter_samples = min(args.nPatternsAL * 100, np.round(args.nSamplesAL * args.nPatternsAL * 0.1))
+n_exciter_samples = min(args.nPatternsAL * 500, np.round(args.nSamplesAL * args.nPatternsAL * 0.5))
 n_test_samples = min(1000, np.round(args.nSamplesAL * args.nPatternsAL * 1.0/6.0))
 use_poisson_input = bool(0)
 high_dt = 3
@@ -343,7 +344,7 @@ else:
 
         # 'KC to DN': W2S*(0.31 * (2500.0/float(args.nKC))),
         # 'KC to DN': W2S * ((0.5 / 1.2) * (2500.0/float(args.nKC))),
-        'KC to DN': W2S * ((0.6 / 1.2) * (2500.0/float(args.nKC))),
+        'KC to DN': W2S * ((0.4 / 1.2) * (2500.0/float(args.nKC))),
 
         'iKC to DN': -W2S * (1.0 * (2500.0 / float(args.nKC))),
         ### inhibitory
@@ -359,7 +360,7 @@ else:
 
         'DN to TR': -W2S * (100.0 * (100.0 / float(args.nDN))),
         'TRS to TR': W2S * (10.0 * (100.0 / float(args.nDN))),
-        'TR to DN': W2S * (0.3 * (100.0 / float(args.nDN))),
+        'TR to DN': W2S * (0.5 * (100.0 / float(args.nDN))),
     }
 
 rand_w = {
@@ -371,7 +372,7 @@ rand_w = {
 
 w_max = (static_w['KC to DN'] * 1.0) * 1.2
 # w_max = W2S*(0.5 * (2500.0/float(args.nKC)))
-w_min = 0. * w_max
+w_min = -2. * w_max
 # w_min = 0.0 * w_max
 print("\nw_min = {}\tw_max = {}\n".format(w_min, w_max))
 
@@ -495,20 +496,23 @@ projections = {
     #                        conn_params={'conn_list': out_neighbours},
     #                        target='excitatory', label='pair DN to DN'),
 
+    ### Add noise to decision neurons
     # 'NS to DN': pynnx.Proj(populations['noise'], populations['decision'],
     #                        'FixedProbabilityConnector', weights=static_w['NS to DN'], delays=1.0,
     #                        conn_params={'p_connect': 0.05}, target='excitatory',
     #                        label='NS to DN'),
 
-    'NS to DN': pynnx.Proj(populations['noise'], populations['decision'],
-                           'OneToOneConnector', weights=static_w['NS to DN'], delays=1.0,
-                           target='excitatory', label='NS to DN'),
+    # 'NS to DN': pynnx.Proj(populations['noise'], populations['decision'],
+    #                        'OneToOneConnector', weights=static_w['NS to DN'], delays=1.0,
+    #                        target='excitatory', label='NS to DN'),
 
+    ### inhibitory noise
     # 'iNS to DN': pynnx.Proj(populations['noise'], populations['decision'],
     #                        'FixedProbabilityConnector', weights=-static_w['NS to DN'], delays=1.0,
     #                        conn_params={'p_connect': 0.05}, target='inhibitory',
     #                        label='iNS to DN'),
 
+    ### add noise to kenyon cells
     # 'NS to KC': pynnx.Proj(populations['noise'], populations['kenyon'],
     #                        'FixedProbabilityConnector', weights=static_w['NS to KC'], delays=1.0,
     #                        conn_params={'p_connect': 0.1}, target='excitatory',
@@ -670,8 +674,8 @@ pynnx.end()
 
 sys.stdout.write('Saving experiment\n')
 sys.stdout.flush()
-# fname = 'mbody-'+args_to_str(args)+'.npz'
-fname = 'mbody-experiment.npz'
+fname = 'mbody-'+args_to_str(args)+'.npz'
+# fname = 'mbody-experiment.npz'
 np.savez_compressed(fname, args=args, sim_time=sim_time,
                     input_spikes=spike_times, input_vectors=input_vecs,
                     input_samples=samples, sample_indices=sample_indices,
