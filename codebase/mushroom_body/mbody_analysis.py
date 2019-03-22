@@ -294,13 +294,17 @@ def plot_vector_distances(vectors, cmap=CMAP):
     fig = plt.figure(figsize=(3, 3))
     ax = plt.subplot(1, 1, 1)
     im = plt.imshow(angles, interpolation='none', cmap=cmap, vmin=0, vmax=90)
+
+    ticks = np.array([0, np.round(n_vectors/2)-1, n_vectors-1]).astype('int')
+    ax.set_xticks(ticks)
+    ax.set_yticks(ticks)
+
+    ax.set_xticklabels(ticks + 1)
+    ax.set_yticklabels(ticks + 1)
+
     div = make_axes_locatable(ax)
     cax = div.append_axes('right', size='5%', pad=0.05)
     cbar = plt.colorbar(im, cax=cax)
-    xticks = ax.get_xticks().astype('int')
-    ax.set_xticklabels(xticks + 1)
-    yticks = ax.get_yticks().astype('int')
-    ax.set_yticklabels(yticks + 1)
 
     return fig, ax
 
