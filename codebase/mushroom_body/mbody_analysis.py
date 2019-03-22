@@ -165,6 +165,44 @@ def power(sig):
 def variance(sig):
     return power(sig) - avg_mean(sig) ** 2
 
+def analyse_spike_patterns(input_spikes, input_vecs, sample_indices, total_t,
+                           sample_dt, start_t=0, do_overlaps=True):
+    n_patterns = len(input_vecs)
+    pop_size = len(input_spikes)
+    n_samples = len(sample_indices)//n_patterns
+    if do_overlaps:
+        all_overlaps = np.zeros((n_patterns, n_samples))
+    else:
+        all_overlaps = np.zeros((n_patterns, 1))
+
+    start_idx = int(start_t//sample_dt)
+    sample_idx = np.zeros(n_patterns)
+    patterns = np.zeros((n_patterns, pop_size))
+    for i, t in enumerate(np.arange(start_t, total_t, sample_dt)):
+        sys.stdout.write('\r%6.2f%%' % (float((i + 1) * 100) / float(n_samples * n_patterns)))
+        sys.stdout.flush()
+        sid = start_idx + i
+        curr_pat = int(sample_indices[sid] // n_samples)
+
+        spikes = np.zeros(pop_size)
+        for j in range(pop_size):
+            row = np.array(input_spikes[j])
+            whr = np.where(np.logical_and(t <= row, row < t + sample_dt))
+            if len(whr[0]):
+                spikes[j] = 1
+
+        patterns[curr_pat, :] += spikes
+
+        if do_overlaps:
+            overlap = np.logical_and(input_vecs[curr_pat], spikes).sum()
+            all_overlaps[curr_pat, int(sample_idx[curr_pat])] = overlap
+            sample_idx[curr_pat] += 1
+
+    sys.stdout.write('\n')
+    sys.stdout.flush()
+
+    return patterns, all_overlaps
+
 def plot_weight_figs(initial, final, difference, out_suffix, cmap='seismic_r'):
     max_end = np.max(np.abs(final))
     max_start = np.max(np.abs(initial))
@@ -225,7 +263,15 @@ def plot_weight_figs(initial, final, difference, out_suffix, cmap='seismic_r'):
     # plt.show()
     plt.close(fig)
 
-def plot_vector_distances(vectors, cmap='plasma'):
+CMAP = 'nipy_spectral'
+# CMAP = 'gist_stern'
+# CMAP = 'inferno'
+# CMAP = 'magma'
+# CMAP = 'plasma'
+# CMAP = 'ocean'
+
+
+def plot_vector_distances(vectors, cmap=CMAP):
     n_vectors = len(vectors)
     angles = np.zeros((n_vectors, n_vectors))
     dots = np.zeros((n_vectors, n_vectors))
@@ -245,7 +291,7 @@ def plot_vector_distances(vectors, cmap='plasma'):
 
     angles[np.isclose(divs, 1.0)] = 0.0
 
-    fig = plt.figure(figsize=(5, 5))
+    fig = plt.figure(figsize=(3, 3))
     ax = plt.subplot(1, 1, 1)
     im = plt.imshow(angles, interpolation='none', cmap=cmap, vmin=0, vmax=90)
     div = make_axes_locatable(ax)
@@ -258,60 +304,49 @@ def plot_vector_distances(vectors, cmap='plasma'):
 
     return fig, ax
 
-def analyse_spike_patterns(input_spikes, input_vecs, sample_indices, total_t,
-                           sample_dt, do_overlaps=True):
-    n_patterns = len(input_vecs)
-    pop_size = len(input_spikes)
-    n_samples = len(sample_indices)//n_patterns
-    if do_overlaps:
-        all_overlaps = np.zeros((n_patterns, n_samples))
-    else:
-        all_overlaps = np.zeros((n_patterns, 1))
 
-    sample_idx = np.zeros(n_patterns)
-    patterns = np.zeros((n_patterns, pop_size))
-    for i, t in enumerate(range(0, total_t, sample_dt)):
-        sys.stdout.write('\r%6.2f%%' % (float((i + 1) * 100) / float(n_samples * n_patterns)))
-        sys.stdout.flush()
-        curr_pat = int(sample_indices[i] // n_samples)
-
-        spikes = np.zeros(pop_size)
-        for j in range(pop_size):
-            row = np.array(input_spikes[j])
-            whr = np.where(np.logical_and(t <= row, row < t + sample_dt))
-            if len(whr[0]):
-                spikes[j] = 1
-
-        patterns[curr_pat, :] += spikes
-
-        if do_overlaps:
-            overlap = np.logical_and(input_vecs[curr_pat], spikes).sum()
-            all_overlaps[curr_pat, int(sample_idx[curr_pat])] = overlap
-            sample_idx[curr_pat] += 1
-
-    sys.stdout.write('\n')
-    sys.stdout.flush()
-
-    return patterns, all_overlaps
-
-def plot_input_vector_distance(input_vectors, out_suffix, cmap='plasma'):
-    fig, ax = plot_vector_distances(input_vectors, cmap)
-    ax.set_title('Angle between input vectors (deg)')
-    plt.savefig('input_vector_distances_{}.pdf'.format(out_suffix))
+def plot_input_vector_distance(_vectors, out_dir, out_suffix, cmap=CMAP):
+    fig, ax = plot_vector_distances(_vectors, cmap)
+    # ax.set_title('Angle between input vectors (deg)')
+    fname = os.path.join(out_dir, 'input_vector_distances_{}.pdf'.format(out_suffix))
+    plt.tight_layout()
+    plt.savefig(fname)
     plt.close(fig)
 
 
-def plot_input_spikes_distance(in_spike_vectors, out_suffix, cmap='plasma'):
-    fig, ax = plot_vector_distances(in_spike_vectors, cmap)
-    ax.set_title('Angle between input spikes (deg)')
-    plt.savefig('noisy_input_spike_distances_{}.pdf'.format(out_suffix))
+def plot_input_spikes_distance(_vectors, out_dir, out_suffix, cmap=CMAP):
+    fig, ax = plot_vector_distances(_vectors, cmap)
+    # ax.set_title('Angle between input spikes (deg)')
+    fname = os.path.join(out_dir, 'noisy_input_spike_distances_{}.pdf'.format(out_suffix))
+    plt.tight_layout()
+    plt.savefig(fname)
     plt.close(fig)
 
 
-def plot_kenyon_spikes_distance(k_spike_vectors, out_suffix, cmap='plasma'):
-    fig, ax = plot_vector_distances(k_spike_vectors, cmap)
-    ax.set_title('Angle between kenyon cell spikes (deg)')
-    plt.savefig('kenyon_spike_distances_{}.pdf'.format(out_suffix))
+def plot_kenyon_spikes_distance(_vectors, out_dir, out_suffix, cmap=CMAP):
+    fig, ax = plot_vector_distances(_vectors, cmap)
+    # ax.set_title('Angle between kenyon neurons spikes (deg)')
+    fname = os.path.join(out_dir, 'kenyon_spike_distances_{}.pdf'.format(out_suffix))
+    plt.tight_layout()
+    plt.savefig(fname)
+    plt.close(fig)
+
+
+def plot_start_decision_spikes_distance(_vectors, out_dir, out_suffix, cmap=CMAP):
+    fig, ax = plot_vector_distances(_vectors, cmap)
+    # ax.set_title('Angle between decision neurons spikes (start; deg)')
+    fname = os.path.join(out_dir, 'decision_start_spike_distances_{}.pdf'.format(out_suffix))
+    plt.tight_layout()
+    plt.savefig(fname)
+    plt.close(fig)
+
+
+def plot_end_decision_spikes_distance(_vectors, out_dir, out_suffix, cmap=CMAP):
+    fig, ax = plot_vector_distances(_vectors, cmap)
+    # ax.set_title('Angle between decision neurons spikes (end; deg)')
+    fname = os.path.join(out_dir, 'decision_end_spike_distances_{}.pdf'.format(out_suffix))
+    plt.tight_layout()
+    plt.savefig(fname)
     plt.close(fig)
 
 
@@ -321,12 +356,7 @@ def plot_kenyon_spikes_distance(k_spike_vectors, out_suffix, cmap='plasma'):
 #################################################################################
 #################################################################################
 
-# cmap = 'nipy_spectral'
-# cmap = 'gist_stern'
-# cmap = 'inferno'
-# cmap = 'magma'
-# cmap = 'plasma'
-# cmap = 'ocean'
+
 
 parser = argparse.ArgumentParser(description='Mushroom body experiment analysis')
 parser.add_argument('filename', type=str, default='', help='filename to analyze')
@@ -334,10 +364,16 @@ parser.add_argument('filename', type=str, default='', help='filename to analyze'
 this_args = parser.parse_args()
 fname = this_args.filename
 out_suffix = os.path.basename(os.path.normpath(fname))[:-4]
+out_dir = os.path.dirname(os.path.normpath(fname))
+out_fname = os.path.join(out_dir, 'analysis___{}.npz'.format(out_suffix))
+if os.path.isfile(out_fname):
+    analysis = np.load(out_fname)
+else:
+    analysis = None
 
 data = np.load(fname)
 args = data['args'].item()
-
+thr = 0.25
 
 #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------
@@ -361,14 +397,14 @@ sys.stdout.write("Rendering input vectors distances\n")
 sys.stdout.flush()
 
 input_vecs = data['input_vectors']
-plot_input_vector_distance(input_vecs, out_suffix)
+plot_input_vector_distance(input_vecs, out_dir, out_suffix)
 
 
 #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------
-sys.stdout.write("Rendering input spike distances\n")
-sys.stdout.flush()
-
+# sys.stdout.write("Rendering input spike distances\n")
+# sys.stdout.flush()
+#
 in_spikes = data['input_spikes']
 total_t = int(data['sim_time'])
 sample_indices = data['sample_indices']
@@ -376,12 +412,18 @@ n_samples = args.nSamplesAL
 n_patterns = args.nPatternsAL
 size_al = args.nAL
 sample_dt = data['sample_dt']
-in_patterns_union, in_paterns_overlap = \
-    analyse_spike_patterns(in_spikes, input_vecs, sample_indices, total_t,
-                           sample_dt)
-
-tmp = (in_patterns_union >= (n_samples * 0.25)).astype('float')
-plot_input_spikes_distance(tmp, out_suffix)
+in_patterns_union = []
+in_patterns_overlap = []
+# if analysis is None:
+#     in_patterns_union, in_patterns_overlap = \
+#         analyse_spike_patterns(in_spikes, input_vecs, sample_indices, total_t,
+#                                sample_dt)
+# else:
+#     in_patterns_union = analysis['in_patterns_union']
+#     in_patterns_overlap = analysis['in_patterns_overlap']
+#
+# tmp = (in_patterns_union >= (n_samples * thr)).astype('float')
+# plot_input_spikes_distance(tmp, out_dir, out_suffix)
 
 
 #-------------------------------------------------------------------------
@@ -390,9 +432,62 @@ sys.stdout.write("Rendering kenyon spike distances\n")
 sys.stdout.flush()
 
 k_spikes = data['kenyon_spikes']
-k_patterns_union, k_paterns_overlap = \
-    analyse_spike_patterns(k_spikes, input_vecs, sample_indices, total_t,
-                           sample_dt, do_overlaps=False)
+if analysis is None:
+    k_patterns_union, k_patterns_overlap = \
+        analyse_spike_patterns(k_spikes, input_vecs, sample_indices, total_t,
+                               sample_dt, do_overlaps=False)
+else:
+    k_patterns_union = analysis['k_patterns_union']
+    k_patterns_overlap = analysis['k_patterns_overlap']
 
-tmp = (k_patterns_union >= (n_samples * 0.25)).astype('float')
-plot_kenyon_spikes_distance(tmp, out_suffix)
+tmp = (k_patterns_union >= (n_samples * thr)).astype('float')
+plot_kenyon_spikes_distance(tmp, out_dir, out_suffix)
+
+
+#-------------------------------------------------------------------------
+#-------------------------------------------------------------------------
+sys.stdout.write("Rendering decision spike distances\n")
+sys.stdout.flush()
+
+d_spikes = data['decision_spikes']
+n_test = data['n_test_samples']
+end_t = n_test * float(data['sample_dt'])
+if analysis is None:
+    d_start_patterns_union, d_start_patterns_overlap = \
+        analyse_spike_patterns(d_spikes, input_vecs, sample_indices, end_t,
+                               sample_dt, do_overlaps=False)
+else:
+    d_start_patterns_union = analysis['d_start_patterns_union']
+    d_start_patterns_overlap = analysis['d_start_patterns_overlap']
+
+tmp = (d_start_patterns_union > 0).astype('float')
+plot_start_decision_spikes_distance(tmp, out_dir, out_suffix)
+
+start_idx = max(0, args.nPatternsAL * args.nSamplesAL - (n_test) )
+start_t = int(start_idx * float(data['sample_dt']))
+if analysis is None:
+    d_end_patterns_union, d_end_patterns_overlap = \
+        analyse_spike_patterns(d_spikes, input_vecs, sample_indices, total_t,
+                               sample_dt, start_t=start_t, do_overlaps=False)
+else:
+    d_end_patterns_union = analysis['d_end_patterns_union']
+    d_end_patterns_overlap = analysis['d_end_patterns_overlap']
+
+tmp = (d_end_patterns_union > 0).astype('float')
+plot_end_decision_spikes_distance(tmp, out_dir, out_suffix)
+
+
+#-------------------------------------------------------------------------
+#-------------------------------------------------------------------------
+
+
+np.savez_compressed(out_fname,
+    in_patterns_union=in_patterns_union,
+    in_patterns_overlap=in_patterns_overlap,
+    k_patterns_union=k_patterns_union,
+    k_patterns_overlap=k_patterns_overlap,
+    d_start_patterns_union=d_start_patterns_union,
+    d_start_patterns_overlap=d_start_patterns_overlap,
+    d_end_patterns_union=d_end_patterns_union,
+    d_end_patterns_overlap=d_end_patterns_overlap,
+)

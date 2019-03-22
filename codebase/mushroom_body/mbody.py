@@ -160,7 +160,7 @@ fb_parameters['tau_refrac'] = 10.0
 exciter_parameters = base_params.copy()
 exciter_parameters['tau_refrac'] = 1.0  # ms
 exciter_parameters['tau_syn_E'] = 1.0  # ms
-exciter_parameters['tau_syn_I'] = 50.0  # ms
+exciter_parameters['tau_syn_I'] = 100.0  # ms
 exciter_parameters['tau_m'] = 5.0  # ms
 exciter_parameters['v_reset'] = -65.0  # ms
 
@@ -175,14 +175,14 @@ if neuron_class == 'IF_curr_exp':
     W2S *= 0.6/ 0.0025
 
 # sample_dt, start_dt, max_rand_dt = 10, 5, 2
-sample_dt, start_dt, max_rand_dt = 50, 5, 2.0
+sample_dt, start_dt, max_rand_dt = 50, 5, 5.0
 sim_time = sample_dt * args.nSamplesAL * args.nPatternsAL
 timestep = 1.0 if bool(0) else 0.1
 regenerate = args.regenerateSamples
 record_all = args.recordAllOutputs and args.nSamplesAL <= 50
 fixed_loops = args.fixedNumLoops
 n_explore_samples = min(args.nPatternsAL * 10, np.round(args.nSamplesAL * args.nPatternsAL * 0.01))
-n_exciter_samples = min(args.nPatternsAL * 500, np.round(args.nSamplesAL * args.nPatternsAL * 0.5))
+n_exciter_samples = min(args.nPatternsAL * 100, np.round(args.nSamplesAL * args.nPatternsAL * 0.1))
 n_test_samples = min(1000, np.round(args.nSamplesAL * args.nPatternsAL * 1.0/6.0))
 use_poisson_input = bool(0)
 high_dt = 3
@@ -293,7 +293,7 @@ populations = {
 }
 
 pynnx.set_recording(populations['decision'], 'spikes')
-np.random.seed(333)
+np.random.seed()
 populations['decision'].initialize(v=np.random.uniform(-120.0, -50.0, size=args.nDN))
 pynnx.set_recording(populations['kenyon'], 'spikes')
 if record_all:
@@ -344,12 +344,14 @@ else:
 
         # 'KC to DN': W2S*(0.31 * (2500.0/float(args.nKC))),
         # 'KC to DN': W2S * ((0.5 / 1.2) * (2500.0/float(args.nKC))),
-        'KC to DN': W2S * ((0.4 / 1.2) * (2500.0/float(args.nKC))),
+        # 0.4 works for 10 input samples
+        # 'KC to DN': W2S * ((0.4 / 1.2) * (2500.0/float(args.nKC))),
+        'KC to DN': W2S * ((0.3 / 1.2) * (2500.0/float(args.nKC))),
 
         'iKC to DN': -W2S * (1.0 * (2500.0 / float(args.nKC))),
         ### inhibitory
         # 'DN to DN': W2S*(0.4 * (100.0/float(args.nDN))),
-        'DN to DN': -W2S * (3.0 * (100.0 / float(args.nDN))),
+        'DN to DN': -W2S * (10.0 * (100.0 / float(args.nDN))),
         'pair DN to DN': W2S * (0.1 * (100.0 / float(args.nDN))),
 
         'NS to DN':  W2S * (0.001 * (100.0 / float(args.nDN))),
@@ -360,7 +362,7 @@ else:
 
         'DN to TR': -W2S * (100.0 * (100.0 / float(args.nDN))),
         'TRS to TR': W2S * (10.0 * (100.0 / float(args.nDN))),
-        'TR to DN': W2S * (0.5 * (100.0 / float(args.nDN))),
+        'TR to DN': W2S * (1.0 * (100.0 / float(args.nDN))),
     }
 
 rand_w = {
@@ -371,6 +373,7 @@ rand_w = {
 }
 
 w_max = (static_w['KC to DN'] * 1.0) * 1.2
+# w_max = 0.2
 # w_max = W2S*(0.5 * (2500.0/float(args.nKC)))
 w_min = -2. * w_max
 # w_min = 0.0 * w_max
@@ -385,8 +388,8 @@ out_list = output_connection_list(args.nKC, args.nDN, args.probKC2DN,
                                   # 0.,
                                   args.inactiveScale,
                                   delay=3,
-                                  # seed=None,
-                                  seed=123456,
+                                  seed=None,
+                                  # seed=123456,
                                   # clip_to=np.inf
                                   clip_to=w_max
                                   )
@@ -396,9 +399,9 @@ out_neighbours = output_pairing_connection_list(args.nDN, 11, static_w['pair DN 
 t_plus = 5.0
 t_minus = 15.0
 # t_minus = 20.0
-a_plus = 0.001
+a_plus = 0.1
 # a_minus = 0.05
-a_minus = 0.001
+a_minus = 0.1
 
 
 stdp = {
