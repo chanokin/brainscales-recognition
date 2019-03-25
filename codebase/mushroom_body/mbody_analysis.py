@@ -271,7 +271,7 @@ CMAP = 'nipy_spectral'
 # CMAP = 'ocean'
 
 
-def plot_vector_distances(vectors, cmap=CMAP):
+def plot_vector_distances(vectors, cmap=CMAP, render_colorbar=True):
     n_vectors = len(vectors)
     angles = np.zeros((n_vectors, n_vectors))
     dots = np.zeros((n_vectors, n_vectors))
@@ -291,6 +291,7 @@ def plot_vector_distances(vectors, cmap=CMAP):
 
     angles[np.isclose(divs, 1.0)] = 0.0
 
+
     fig = plt.figure(figsize=(3, 3))
     ax = plt.subplot(1, 1, 1)
     im = plt.imshow(angles, interpolation='none', cmap=cmap, vmin=0, vmax=90)
@@ -302,15 +303,21 @@ def plot_vector_distances(vectors, cmap=CMAP):
     ax.set_xticklabels(ticks + 1)
     ax.set_yticklabels(ticks + 1)
 
-    div = make_axes_locatable(ax)
-    cax = div.append_axes('right', size='5%', pad=0.05)
-    cbar = plt.colorbar(im, cax=cax)
+    if n_vectors > 99:
+        tick = ax.xaxis.get_major_ticks()[-1]
+        tick.label1.set_horizontalalignment('right')
+
+    if render_colorbar:
+        div = make_axes_locatable(ax)
+        cax = div.append_axes('right', size='5%', pad=0.15)
+        cbar = plt.colorbar(im, cax=cax)
 
     return fig, ax
 
 
-def plot_input_vector_distance(_vectors, out_dir, out_suffix, cmap=CMAP):
-    fig, ax = plot_vector_distances(_vectors, cmap)
+def plot_input_vector_distance(_vectors, out_dir, out_suffix,
+                               cmap=CMAP, render_colorbar=True):
+    fig, ax = plot_vector_distances(_vectors, cmap, render_colorbar=render_colorbar)
     # ax.set_title('Angle between input vectors (deg)')
     fname = os.path.join(out_dir, 'input_vector_distances_{}.pdf'.format(out_suffix))
     plt.tight_layout()
@@ -318,8 +325,9 @@ def plot_input_vector_distance(_vectors, out_dir, out_suffix, cmap=CMAP):
     plt.close(fig)
 
 
-def plot_input_spikes_distance(_vectors, out_dir, out_suffix, cmap=CMAP):
-    fig, ax = plot_vector_distances(_vectors, cmap)
+def plot_input_spikes_distance(_vectors, out_dir, out_suffix,
+                               cmap=CMAP, render_colorbar=True):
+    fig, ax = plot_vector_distances(_vectors, cmap, render_colorbar=render_colorbar)
     # ax.set_title('Angle between input spikes (deg)')
     fname = os.path.join(out_dir, 'noisy_input_spike_distances_{}.pdf'.format(out_suffix))
     plt.tight_layout()
@@ -327,8 +335,9 @@ def plot_input_spikes_distance(_vectors, out_dir, out_suffix, cmap=CMAP):
     plt.close(fig)
 
 
-def plot_kenyon_spikes_distance(_vectors, out_dir, out_suffix, cmap=CMAP):
-    fig, ax = plot_vector_distances(_vectors, cmap)
+def plot_kenyon_spikes_distance(_vectors, out_dir, out_suffix,
+                                cmap=CMAP, render_colorbar=True):
+    fig, ax = plot_vector_distances(_vectors, cmap, render_colorbar=render_colorbar)
     # ax.set_title('Angle between kenyon neurons spikes (deg)')
     fname = os.path.join(out_dir, 'kenyon_spike_distances_{}.pdf'.format(out_suffix))
     plt.tight_layout()
@@ -336,8 +345,9 @@ def plot_kenyon_spikes_distance(_vectors, out_dir, out_suffix, cmap=CMAP):
     plt.close(fig)
 
 
-def plot_start_decision_spikes_distance(_vectors, out_dir, out_suffix, cmap=CMAP):
-    fig, ax = plot_vector_distances(_vectors, cmap)
+def plot_start_decision_spikes_distance(_vectors, out_dir, out_suffix,
+                                        cmap=CMAP, render_colorbar=True):
+    fig, ax = plot_vector_distances(_vectors, cmap, render_colorbar=render_colorbar)
     # ax.set_title('Angle between decision neurons spikes (start; deg)')
     fname = os.path.join(out_dir, 'decision_start_spike_distances_{}.pdf'.format(out_suffix))
     plt.tight_layout()
@@ -345,8 +355,9 @@ def plot_start_decision_spikes_distance(_vectors, out_dir, out_suffix, cmap=CMAP
     plt.close(fig)
 
 
-def plot_end_decision_spikes_distance(_vectors, out_dir, out_suffix, cmap=CMAP):
-    fig, ax = plot_vector_distances(_vectors, cmap)
+def plot_end_decision_spikes_distance(_vectors, out_dir, out_suffix,
+                                      cmap=CMAP, render_colorbar=True):
+    fig, ax = plot_vector_distances(_vectors, cmap, render_colorbar=render_colorbar)
     # ax.set_title('Angle between decision neurons spikes (end; deg)')
     fname = os.path.join(out_dir, 'decision_end_spike_distances_{}.pdf'.format(out_suffix))
     plt.tight_layout()
@@ -478,7 +489,7 @@ else:
     d_end_patterns_overlap = analysis['d_end_patterns_overlap']
 
 tmp = (d_end_patterns_union > 0).astype('float')
-plot_end_decision_spikes_distance(tmp, out_dir, out_suffix)
+plot_end_decision_spikes_distance(tmp, out_dir, out_suffix, render_colorbar=True)
 
 
 #-------------------------------------------------------------------------
