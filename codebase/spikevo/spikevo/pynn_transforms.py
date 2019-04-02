@@ -175,7 +175,7 @@ class PyNNAL(object):
         return getattr(self._sim, obj_name)
     
     def Pop(self, size, cell_class, params, label=None, shape=None,
-        max_sub_size=None):
+        max_sub_size=None, hicann_id=None):
 
         if max_sub_size is None:
             max_sub_size = self._max_subpop_size
@@ -192,12 +192,17 @@ class PyNNAL(object):
         if size <= max_sub_size or is_source_pop:
             if self._ver() == 7:
                 pop = sim.Population(size, cell_class, params, label=label)
+                if self._sim_name == BSS and hicann_id is not None:
+                    hicann = C.HICANNOnWafer(C.Enum(hicann_id))
+                    self.marocco.manual_placement.on_hicann(pop, hicann)
             else:
                 pop = sim.Population(size, cell_class(**params), label=label)
 
             self._graph.add(pop, is_source_pop)
             if self._graph.width < 1:
                 self._graph.width = 1
+
+
 
             return pop
         else:

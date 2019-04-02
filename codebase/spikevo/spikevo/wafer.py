@@ -102,7 +102,7 @@ class Wafer(object):
     _reticle_row_widths = WAFER_RETICLE_ROW_WIDTHS
     _reticle_row_x_starts = WAFER_RETICLE_ROW_X_STARTS
 
-    def __init__(self, wafer_id=33):
+    def __init__(self, wafer_id=None):
         self._id = wafer_id
         self._avail_ids = None
         self._used_chips = [{} for _ in range(self._height)]
@@ -305,3 +305,34 @@ class Wafer(object):
 
     def c2i(self, coord):
         return self.c2i(coord[0], coord[1])
+
+    def get_neighbours(self, center_id, max_dist=1):
+        """:param center_id: the id of the hicann from whom neighbours are required
+        :param max_dist: how wide the neighbourhood is"""
+        if max_dist == 0:
+            raise  Exception("Unable to provide neighbourhood for a distance of 0")
+
+        data = {}
+        c_row, c_col = self.i2c(center_id)
+        data[0] = {0: [id, c_row, c_col]}
+        for rd in np.arange(-max_dist, max_dist + 1):
+            row_dict = data.get(rd, dict())
+            for rc in np.arange(-max_dist, max_dist + 1):
+                if rd == 0 and rc == 0:
+                    continue
+
+                r = c_row + rd
+                if r not in self._row_coords:
+                    continue
+
+                c = c_col + rc
+                if c not in self._row_coords[r]:
+                    continue
+
+                nid = self.c2i(r, c)
+
+                row_dict[rc] = [nid, r, c]
+
+            data[rd] = row_dict
+
+        return data

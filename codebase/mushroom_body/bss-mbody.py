@@ -10,11 +10,38 @@ import time
 import datetime
 from spikevo import *
 from spikevo.pynn_transforms import PyNNAL
+from spikevo.wafer import Wafer as WAL
 import argparse
 from pprint import pprint
 from args_setup import get_args
 from input_utils import *
 
+def get_hicanns(center_hicann):
+    w = WAL()
+    neighbourhood = w.get_neighbours(center_hicann, max_dist=2)
+
+
+    ID, ROW, COL = range(3)
+    ### ideal config is in a 3x3 grid
+    places = {
+    # 'antenna': neighbourhood[-1, 1][ID],
+    'antenna': neighbourhood[1, 1][ID],
+    'kenyon': [neighbourhood[0, 1][ID],
+               neighbourhood[1, 0][ID],
+               neighbourhood[1, 1][ID]],
+    'decision': neighbourhood[-1, 1][ID],
+
+    # 'tick': neighbourhood[-1, -1][ID],
+    'tick': neighbourhood[-1, 0][ID],
+    'feedback': neighbourhood[-1, 0][ID],
+
+
+    # 'exciter src': neighbourhood[1, -1][ID],
+    'exciter src': neighbourhood[0, -1][ID],
+    'exciter': neighbourhood[0, -1][ID],
+    }
+
+    return places
 
 def gain_control_list(input_size, horn_size, max_w, cutoff=0.7):
     if cutoff is not None:
@@ -254,7 +281,7 @@ sys.stdout.flush()
 
 pynnx = PyNNAL(backend)
 pynnx._sim.setup(timestep=timestep, min_delay=timestep,
-                 extra_params={'use_cpu': True})
+                 extra_params={'wafer': 33})
 # pynnx.setup(timestep=timestep, min_delay=timestep,
 #             per_sim_params={'use_cpu': True})
 
@@ -263,6 +290,9 @@ sys.stdout.flush()
 
 sys.stdout.write('Creating populations\n')
 sys.stdout.flush()
+
+central_hicann = 50
+hicanns = get_hicanns(central_hicann)
 
 populations = {
     'antenna': pynnx.Pop(args.nAL, 'SpikeSourceArray',
