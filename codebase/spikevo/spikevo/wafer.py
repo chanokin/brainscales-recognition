@@ -102,7 +102,7 @@ class Wafer(object):
     _reticle_row_widths = WAFER_RETICLE_ROW_WIDTHS
     _reticle_row_x_starts = WAFER_RETICLE_ROW_X_STARTS
 
-    def __init__(self, wafer_id=None):
+    def __init__(self, wafer_id=33):
         self._id = wafer_id
         self._avail_ids = None
         self._used_chips = [{} for _ in range(self._height)]
@@ -300,11 +300,15 @@ class Wafer(object):
     def i2c(self, i):
         return self._i2c[i]
 
-    def c2i(self, r, c):
-        return self._c2i[r][c]
+    def c2i(self, coord_or_row, col=None):
+        if col is None:
+            row = coord_or_row[0]
+            col = coord_or_row[1]
+        else:
+            row = coord_or_row
 
-    def c2i(self, coord):
-        return self.c2i(coord[0], coord[1])
+        return self._c2i[row][col]
+
 
     def get_neighbours(self, center_id, max_dist=1):
         """:param center_id: the id of the hicann from whom neighbours are required
@@ -314,7 +318,7 @@ class Wafer(object):
 
         data = {}
         c_row, c_col = self.i2c(center_id)
-        data[0] = {0: [id, c_row, c_col]}
+        data[0] = {0: [center_id, c_row, c_col]}
         for rd in np.arange(-max_dist, max_dist + 1):
             row_dict = data.get(rd, dict())
             for rc in np.arange(-max_dist, max_dist + 1):
@@ -329,7 +333,7 @@ class Wafer(object):
                 if c not in self._row_coords[r]:
                     continue
 
-                nid = self.c2i(r, c)
+                nid = self.c2i([r, c])
 
                 row_dict[rc] = [nid, r, c]
 

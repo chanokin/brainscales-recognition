@@ -2,7 +2,7 @@ from distutils.core import setup
 import os
 
 
-install_reqs = [ 'pynn==0.7.5', 'numpy', 'scipy', 'matplotlib']
+install_reqs = ['pynn', 'numpy', 'scipy', 'matplotlib']
 pack = 'spikevo'
 pack_dir = os.path.join(os.path.dirname(__file__), pack)
 

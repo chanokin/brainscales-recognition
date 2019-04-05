@@ -187,7 +187,7 @@ class PyNNAL(object):
 
         is_source_pop = txt_class.startswith('SpikeSource')
         
-        sim = self.sim
+        sim = self._sim
         
         if size <= max_sub_size or is_source_pop:
             if self._ver() == 7:
@@ -230,7 +230,7 @@ class PyNNAL(object):
             return param
 
 
-    def Proj(self, source_pop, dest_pop, conn_class, weights, delays, 
+    def Proj(self, source_pop, dest_pop, conn_class, weights, delays=1,
              target='excitatory', stdp=None, label=None, conn_params={}):
 
         if isinstance(source_pop, SplitPopulation) or \
@@ -239,11 +239,13 @@ class PyNNAL(object):
             ### a bit spaghetti but it's less code :p
             return SplitProjection(self, source_pop, dest_pop, conn_class, weights, delays,
              target=target, stdp=stdp, label=label, conn_params=conn_params)
-            
-        if type(conn_class) == type(u''): #convert from text representation to object
+
+        # convert from text representation to object
+        if type(conn_class) == type(u'') or isinstance(conn_class, str) or \
+            type(conn_class) == type(''):
             conn_class = self._get_obj(conn_class)
 
-        sim = self.sim
+        sim = self._sim
 
         weights = self.parse_conn_params(weights)
         delays = self.parse_conn_params(delays)
@@ -329,7 +331,7 @@ class PyNNAL(object):
                 for train in spiketrains:
                     ### NOTE: had to remove units because pyro don't like numpy!
                     spikes[int(train.annotations['source_index'])][:] = \
-                        [float(t) for t in train] 
+                                                        [float(t) for t in train]
         
         return spikes
 
