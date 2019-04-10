@@ -52,6 +52,8 @@ def str2bool(v):
 def calc_n_part(size, part_size):
     return size//part_size + int(size % part_size > 0)
 
+def is_string(data):
+    return type(data) == type(u'') or isinstance(data, str) or type(data) == type('')
 
 def render_spikes(spikes, title, filename, markersize=1, color='blue'):
     import matplotlib

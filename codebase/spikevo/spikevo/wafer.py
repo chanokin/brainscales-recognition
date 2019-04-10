@@ -319,24 +319,27 @@ class Wafer(object):
         data = {}
         c_row, c_col = self.i2c(center_id)
         data[0] = {0: [center_id, c_row, c_col]}
-        for rd in np.arange(-max_dist, max_dist + 1):
-            row_dict = data.get(rd, dict())
-            for rc in np.arange(-max_dist, max_dist + 1):
-                if rd == 0 and rc == 0:
+        
+        for dr in np.arange(-max_dist, max_dist + 1):
+            row_dict = data.get(dr, dict())
+            for dc in np.arange(-max_dist, max_dist + 1):
+                if dr == 0 and dc == 0:
                     continue
 
-                r = c_row + rd
+                r = c_row + dr
                 if r not in self._row_coords:
                     continue
 
-                c = c_col + rc
+                c = c_col + dc
                 if c not in self._row_coords[r]:
                     continue
 
                 nid = self.c2i([r, c])
 
-                row_dict[rc] = [nid, r, c]
+                row_dict[dc] = [nid, r, c]
 
-            data[rd] = row_dict
+            data[dr] = row_dict
 
         return data
+
+

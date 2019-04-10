@@ -10,7 +10,8 @@ from .image_input import NestImagePopulation
 from .wafer import Wafer as WAL
 from .graph import Graph, Node
 from .brainscales_placement import *
-from .partitioning import SplitPopulation, SplitProjection
+from .partitioning import SplitPop, SplitPopulation, \
+                          SplitArrayPopulation, SplitProjection
 
 import os
 try:
@@ -21,6 +22,16 @@ try:
     from pymarocco.runtime import Runtime
     from pymarocco.coordinates import LogicalNeuron
     from pymarocco.results import Marocco
+    from pymarocco import Defects
+    from pysthal.command_line_util import init_logger
+
+    init_logger("WARN", [
+        ("guidebook", "INFO"),
+        ("marocco", "INFO"),
+        ("Calibtic", "INFO"),
+        ("sthal", "INFO")
+    ])
+
 except:
     pass
 
@@ -46,6 +57,7 @@ class PyNNAL(object):
         elif BSS_BACK in sim_name:
             self._max_subpop_size = BSS_MAX_SUBPOP_SIZE
             self._sim_name = BSS
+            self.marocco = None
         else:
             raise Exception("Not supported simulator ({})".format(sim_name))
 
@@ -89,8 +101,8 @@ class PyNNAL(object):
         self._extra_config = per_sim_params
         
         if self.sim_name == BSS: #do extra setup for BrainScaleS
-            wafer = per_sim_params.get('wafer', None)
-            marocco = PyMarocco()
+            wafer = per_sim_params.get("wafer", None)
+            marocco = per_sim_params.get("marocco", PyMarocco())
             marocco.backend = PyMarocco.Hardware
             if wafer is not None:
                 per_sim_params.pop('wafer')
@@ -99,16 +111,15 @@ class PyNNAL(object):
                 setup_args['marocco_runtime'] = runtime
                 self.runtime = runtime
                 self._wafer = WAL(wafer_id=wafer)
-
-
-
-            marocco.calib_path = per_sim_params.get('calib_path',
-                            '/wang/data/calibration/brainscales/WIP-2018-09-18')
+                
+            calib_path = per_sim_params.get("calib_path",
+                            "/wang/data/calibration/brainscales/WIP-2018-09-18")
             
+            marocco.calib_path = calib_path
             marocco.defects.path = marocco.calib_path
             marocco.verification = PyMarocco.Skip
             marocco.checkl1locking = PyMarocco.SkipCheck
-
+            marocco.continue_despite_synapse_loss = True
             per_sim_params.pop('calib_path', None)
             
             setup_args['marocco'] = marocco
@@ -126,8 +137,8 @@ class PyNNAL(object):
     def run(self, duration, gmax=1023, gmax_div=1):
         if self.sim_name == BSS:
             if self._first_run:
-                self._do_BSS_placement()
-                self.marocco.skip_mapping = True
+                # self._do_BSS_placement()
+                # self.marocco.skip_mapping = True
                 # self.marocco.backend = PyMarocco.None
 
                 # self.sim.reset()
@@ -166,7 +177,7 @@ class PyNNAL(object):
         self._sim.end()
     
     def _is_v9(self):
-        return ('genn' in self.sim.__name__)
+        return ('genn' in self._sim.__name__)
 
     def _ver(self):
         return (9 if self._is_v9() else 7)
@@ -179,7 +190,7 @@ class PyNNAL(object):
 
         if max_sub_size is None:
             max_sub_size = self._max_subpop_size
-        if type(cell_class) == type(u''): #convert from text representation to object
+        if is_string(cell_class): #convert from text representation to object
             txt_class = cell_class
             cell_class = self._get_obj(cell_class)
         else:
@@ -187,9 +198,24 @@ class PyNNAL(object):
 
         is_source_pop = txt_class.startswith('SpikeSource')
         
-        sim = self._sim
-        
-        if size <= max_sub_size or is_source_pop:
+        sim = self.sim
+        if self._sim_name == BSS and txt_class.lower() == 'spikesourcearray' and \
+           params['spike_times'] and isinstance(params['spike_times'][0], list):
+            spop = SplitArrayPopulation(self, size, cell_class, params, label, 
+                                        shape, max_sub_size=1)
+            for pop_dict in spop._populations:
+                pop = pop_dict['pop']
+                if hicann_id is not None:
+                    hicann = C.HICANNOnWafer(C.Enum(hicann_id))
+                    self.marocco.manual_placement.on_hicann(pop, hicann)
+
+            self._graph.add(pop, is_source_pop)
+            if self._graph.width < 1:
+                self._graph.width = 1
+
+            return spop
+            
+        elif size <= max_sub_size or is_source_pop:
             if self._ver() == 7:
                 pop = sim.Population(size, cell_class, params, label=label)
                 if self._sim_name == BSS and hicann_id is not None:
@@ -233,17 +259,18 @@ class PyNNAL(object):
     def Proj(self, source_pop, dest_pop, conn_class, weights, delays=1,
              target='excitatory', stdp=None, label=None, conn_params={}):
 
-        if isinstance(source_pop, SplitPopulation) or \
-            isinstance(dest_pop, SplitPopulation):
+        if isinstance(source_pop, SplitPop) or \
+            isinstance(dest_pop, SplitPop):
             ### first argument is this PYNNAL instance, needed to loop back here!
             ### a bit spaghetti but it's less code :p
             return SplitProjection(self, source_pop, dest_pop, conn_class, weights, delays,
              target=target, stdp=stdp, label=label, conn_params=conn_params)
-
-        # convert from text representation to object
-        if type(conn_class) == type(u'') or isinstance(conn_class, str) or \
-            type(conn_class) == type(''):
+            
+        if is_string(conn_class): #convert from text representation to object
+            conn_text = conn_class
             conn_class = self._get_obj(conn_class)
+        else:
+            conn_text == conn_class.__name__
 
         sim = self._sim
 
@@ -256,9 +283,13 @@ class PyNNAL(object):
             pre_pop = source_pop.out if isinstance(source_pop, NestImagePopulation)\
                         else source_pop
 
-            tmp = conn_params.copy()
-            tmp['weights'] = weights
-            tmp['delays'] = delays
+            if conn_text.startswith('From'):
+                tmp = conn_params.copy() 
+            else:
+                tmp = conn_params.copy()
+                tmp['weights'] = weights
+                tmp['delays'] = delays
+                
             conn = conn_class(**tmp)
             
             if stdp is not None:

@@ -198,13 +198,6 @@ neuron_params = {
 }
 
 W2S = args.w2s
-if neuron_class == 'IF_curr_exp':
-    ###___this works for 100-2500-100
-    # W2S *= 0.6/ 0.0025
-    ###___this works for 100-2500-100
-    # W2S *= 0.9/ 0.0025
-    ###___this works for 49-500-49
-    W2S *= 0.5/ 0.01
 
 # sample_dt, start_dt, max_rand_dt = 10, 5, 2
 sample_dt, start_dt, max_rand_dt = 50, 5, 5.0
@@ -351,7 +344,7 @@ if neuron_class == 'IF_cond_exp':
         'KC to KC': W2S * (0.1 * (2500.0 / float(args.nKC))),
 
         'KC to DN': W2S * (0.02 * (2500.0 / float(args.nKC))),
-        'DN to DN': W2S * (1.0 * (100.0 / float(args.nDN))),
+        'DN to DN': W2S * (5.0 * (100.0 / float(args.nDN))),
 
         'DN to FB': W2S * (0.75 * (100.0 / float(args.nDN))),
         'FB to DN': W2S * (1.5 * (100.0 / float(args.nDN))),

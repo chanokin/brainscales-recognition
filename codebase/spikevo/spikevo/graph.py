@@ -8,8 +8,8 @@ import numpy as np
 import copy
 
 class Node(object):
-    def __init__(self, id, is_source=False, depth=0):
-        self.id = id
+    def __init__(self, pid, is_source=False, depth=0):
+        self.id = pid
         self.is_source = is_source
         self.place = np.zeros(2, dtype='uint8')
         self.place_id = -1
@@ -41,24 +41,25 @@ class Graph(object):
         self.link_count = 0
 
     def add(self, pop, is_source):
-        id = pop.label
+        # print(dir(pop))
+        pid = pop.label
 
-        if id in self.nodes:
-            sys.stderr.write("Population {} has a duplicate label, randomizing!\n".format(id))
+        if pid in self.nodes:
+            sys.stderr.write("Population {} has a duplicate label, randomizing!\n".format(pid))
             sys.stderr.flush()
-            id = "{}_{}".format(id, np.random.randint(0, dtype='uint32'))
-            sys.stderr.write("\tnew name {}\n\n".format(id))
+            pid = "{}_{}".format(pid, np.random.randint(100000, dtype='uint32'))
+            sys.stderr.write("\tnew name {}\n\n".format(pid))
             sys.stderr.flush()
-            pop.label = id
+            # pop.label = pid
 
-        self.pops[id] = pop
+        self.pops[pid] = pop
 
         if is_source:
-            self.sources[id] = Node(id, is_source=is_source, depth=0)
+            self.sources[pid] = Node(pid, is_source=is_source, depth=0)
         else:
-            self.nodes[id] = Node(id, is_source=is_source)
+            self.nodes[pid] = Node(pid, is_source=is_source)
 
-        return id
+        return pid
 
     def plug(self, source_pop, sink_pop, w=1):
         if sink_pop.label not in self.nodes:

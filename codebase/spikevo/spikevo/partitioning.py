@@ -14,8 +14,88 @@ from .brainscales_placement import *
 
 import os
 
+class SplitPop(object):
+    pass
 
-class SplitPopulation(object):
+
+class SplitArrayPopulation(SplitPop):
+    """
+        When using the BrainScaleS toolchain we faced some problems with the
+        partition and place-and-route algorithms. The initial problem is
+        that the tools break when using certain connectivity (e.g. populations
+        greater than 200 with one-to-one connectors). This class attempts to
+        avoid the problem by partitionining before the toolchain requires it.
+    """
+
+    ### This seems like reinventing the wheel and I shouldn't have to!
+    def __init__(self, pynnal, size, cell_class, params, label=None, shape=None,
+                 max_sub_size=1):
+        """
+            pynnal: PyNN Abstraction Layer instance, we use it to avoid re-coding
+                different cases for different PyNN versions while creating
+                the populations.
+            size: original size of the population
+            cell_class: original PyNN cell type of the population
+            params: original PyNN parameters for the given cell type
+            label: original population label/name
+            shape: shape of the original population (currently only 1D supported)
+            max_sub_size: size of the sub-populations to be created
+        """
+        self.pynnal = pynnal
+        self.size = size
+        self.cell_class = cell_class
+        self.params = params
+        if label is None:
+            self.label = "SplitArrayPopulation ({:05d})".format(
+                np.random.randint(0, 99999))
+        else:
+            self.label = label
+
+        if shape is None:
+            self.shape = (size,)  # tuple expressing grid size, 1D by default
+        else:
+            assert np.prod(shape) == size, \
+                "Total number of neurons should equal grid dimensions"
+            self.shape = shape
+
+        ### TODO: this will likely change if shape is not 1D
+        self.max_sub_size = max_sub_size
+        self.n_sub_pops = calc_n_part(self.size, self.max_sub_size)
+
+        ### actually do the partitioning
+        self.partition()
+
+    def partition(self):
+        if len(self.shape) == 1:
+            pops = []
+            count = 0
+            template = " - sub %%0%dd" % int(np.ceil(self.n_sub_pops/10.0)+1)
+            for i in range(self.n_sub_pops):
+                size = min(self.max_sub_size, self.size - count)
+                ids = np.arange(count, count + size)
+                count += self.max_sub_size
+                label = self.label + (template % (i + 1))
+                if self.cell_class.__name__.lower() == 'spikesourcearray':
+                    if isinstance(self.params['spike_times'][0], list):
+                        params = {'spike_times': self.params['spike_times'][i]}
+                # print(ids, label)
+                pops.append({
+                    'ids': ids,
+                    'pop': self.pynnal.Pop(size, self.cell_class, params, label=label),
+                    'label': label,
+                })
+
+        ### TODO: deal with 2D, 3D!
+        self._populations = pops
+
+    def record(self, recordable):
+        for pop in self._populations:
+            self.pynnal.set_recording(pop['pop'], recordable)
+
+
+
+
+class SplitPopulation(SplitPop):
     """
         When using the BrainScaleS toolchain we faced some problems with the
         partition and place-and-route algorithms. The initial problem is
@@ -129,24 +209,24 @@ class SplitProjection(object):
         w, d, tgt = self.weights, self.delays, self.target
         stdp = self.stdp
 
-        if isinstance(src, SplitPopulation):
+        if isinstance(src, SplitPopulation) or isinstance(src, SplitArrayPopulation):
             pres = src._populations
         else:
-            pres = [{'ids': np.arange(src.size), 'pop': src}]
+            pres = [{'ids': np.arange(src.size), 'pop': src, 'label': src.label}]
 
-        if isinstance(dst, SplitPopulation):
+        if isinstance(dst, SplitPopulation) or isinstance(dst, SplitArrayPopulation):
             posts = dst._populations
         else:
-            posts = [{'ids': np.arange(dst.size), 'pop': dst}]
+            posts = [{'ids': np.arange(dst.size), 'pop': dst, 'label': dst.label}]
 
         projs = {}
         for src_part in pres:
-            pre_ids, pre = src_part['ids'], src_part['pop']
-            src_prjs = projs.get(pre.label, {})
+            pre_ids, pre, pre_label = src_part['ids'], src_part['pop'], src_part['label']
+            src_prjs = projs.get(pre_label, {})
 
             for dst_part in posts:
-                post_ids, post = dst_part['ids'], dst_part['pop']
-                lbl = '{} sub {} - {}'.format(self.label, pre.label, post.label)
+                post_ids, post, post_label = dst_part['ids'], dst_part['pop'], dst_part['label']
+                lbl = '{} sub {} - {}'.format(self.label, pre_label, post_label)
 
                 proj = self._proj(src_part, dst_part, conn, w, d,
                                   tgt, params, lbl, stdp)
@@ -154,15 +234,15 @@ class SplitProjection(object):
                 if proj is None:
                     continue
 
-                src_prjs[post.label] = {'ids': {'pre': pre_ids, 'post': post_ids},
+                src_prjs[post_label] = {'ids': {'pre': pre_ids, 'post': post_ids},
                                         'proj': proj}
 
-            projs[pre.label] = src_prjs
+            projs[pre_label] = src_prjs
 
         self._projections = projs
 
     def _proj(self, pre, post, conn, w, d, tgt, params, lbl, stdp=None):
-        cname = conn if type(conn) == type(u'') else conn.__name__
+        cname = conn if is_string(conn) else conn.__name__
         if cname.startswith('FromList'):
             return self.from_list_connector(pre, post, conn, w, d, tgt, params, lbl, stdp=None)
         elif cname.startswith('OneToOne'):
@@ -234,12 +314,16 @@ class SplitProjection(object):
         pynnal = self.pynnal
         mtx = np.ones((self.source.size, self.destination.size)) * np.inf
         for row in self._projections:
-            for part in row:
+            for col in self._projections[row]:
+                part = self._projections[row][col]
                 pre_ids = part['ids']['pre']
-                r0, rN = pre_ids[0], pre_ids[-1]
+
+                r0, rN = np.min(pre_ids), np.max(pre_ids) + 1
+                
                 post_ids = part['ids']['post']
-                c0, cN = post_ids[0], post_ids[-1]
-                weights = pynnal.getWeights(part['proj'], format=format)
+                c0, cN = np.min(post_ids), np.max(post_ids) + 1
+
+                weights = pynnal.get_weights(part['proj'], format=format)
                 mtx[r0:rN, c0:cN] = weights
 
         return mtx
