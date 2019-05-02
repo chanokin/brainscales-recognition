@@ -41,10 +41,10 @@ def average_dtdv(dtdv):
     return avg
 
 
-def plot_spiketrains(segment, label=None):
+def plot_spiketrains(segment, label=None, marker='.', color='blue'):
     for spiketrain in segment.spiketrains:
         y = np.ones_like(spiketrain) * spiketrain.annotations['source_index']
-        plt.plot(spiketrain, y, '.', label=label)
+        plt.plot(spiketrain, y, marker=marker, color=color, linestyle='none', label=label)
         plt.ylabel(segment.name)
         plt.setp(plt.gca().get_xticklabels(), visible=True)
 
@@ -55,42 +55,48 @@ def plot_signal(signal, index, colour=None):
     plt.ylabel("%s (%s)" % (signal.name, signal.units._dimensionality.string))
 
 
-N_NEURONS = 10000
+N_NEURONS = 20000
 test = N_NEURONS <= 10
 start_w = 0.001
-noise_w = 0.01
-max_w = 0.2
-noise_rate = 100.0
-input_rate = 10.0
+noise_w = 0.05
+inh_noise_w_mult = 1.0
+max_w = 0.01
+noise_rate = 50.0
+input_rate = 20.0
 sim_timestep = 0.1
 sim_run_time = 200.
 syn_delay = sim_timestep
-v_init = -50.0
 
+v_init = -65.0
+v_thr = v_init + 10.0
 neuron_parameters = {
-    'v_thresh':    v_init + 5.0,
-    'tau_m':       10.,
-    'tau_refrac':  1.0,
-    'v_reset':     v_init - 5.0,  #hdbrgs
-    'tau_syn_E':   1.0,
-    'tau_syn_I':   1.0,
-    'i_offset':    0.0,
-    #ESS - BrainScaleS
-    'cm':          0.2,
-    'v_rest':     v_init,
-    'e_rev_E':     0.,
-    'e_rev_I':    -92.,
-    'tau_slow':    20.0,
+    'cm': 0.2,
+    'v_reset': v_init - 10.0,  # hdbrgs
+    'v_thresh': v_thr,
+    'tau_m': 5.,
+    'tau_refrac': 10.0,
+    'tau_syn_E': 2.0,
+    'tau_syn_I': 5.0,
+    'i_offset': 0.0,
+    # ESS - BrainScaleS
+    'v_rest': v_init,
+    'tau_slow': 50.0,
     'tau_syn_E_slow': 100.0,
     'tau_syn_I_slow': 100.0,
     'v_activate_slow': -100.0,
 
+    'v_thresh_max': v_thr,
+    'v_thresh_min': v_thr,
+
 }
+
 
 pynn.setup(timestep=sim_timestep, use_cpu=True)
 
 # neuron_class = pynn.IF_curr_exp_slow
 neuron_class = pynn.IF_cond_exp_slow
+neuron_parameters['e_rev_E'] = -30.0
+neuron_parameters['e_rev_I'] = -92.0
 
 neurons = pynn.Population(N_NEURONS,
             neuron_class(**neuron_parameters),
@@ -103,7 +109,7 @@ pynn.initialize(neurons, v=v_init, v_slow=v_init, v_slow_old=v_init)
 
 
 inputs = pynn.Population(N_NEURONS,
-            pynn.SpikeSourcePoisson(rate=100.0),
+            pynn.SpikeSourcePoisson(rate=input_rate),
             label='Input'
          )
 inputs.record('spikes')
@@ -132,7 +138,7 @@ inh_noise_pop = pynn.Population(N_NEURONS,
             label='Noise')
 inh_noise_pop.record('spikes')
 
-syn = pynn.StaticSynapse(weight=noise_w * 0.75, delay=syn_delay)
+syn = pynn.StaticSynapse(weight=noise_w * inh_noise_w_mult, delay=syn_delay)
 proj = pynn.Projection(inh_noise_pop, neurons,
                        pynn.OneToOneConnector(),
                        syn, receptor_type='inhibitory')
@@ -163,12 +169,14 @@ pynn.end()
 
 if test and len(post_data.segments):
     print([len(spks) for spks in post_data.segments[0].spiketrains])
-    data = post_data.segments[0]
+    data = input_data.segments[0]
     out_spikes = np.array(data.spiketrains)
-
-
     plt.figure()
     plt.suptitle('Spikes')
+    plot_spiketrains(data, marker='x', color='red')
+
+    data = post_data.segments[0]
+    out_spikes = np.array(data.spiketrains)
     plot_spiketrains(data)
     plt.xlabel("time (%s)" % data.analogsignals[0].times.units._dimensionality.string)
 
@@ -228,7 +236,7 @@ else:
     plt.axhline(0, color='gray')
     for dt in avg_dtdv:
         if np.isnan(avg_dtdv[dt]):
-            print(dt)
+            # print(dt)
             continue
         plt.plot(dt, avg_dtdv[dt], '.b', alpha=0.2)
 

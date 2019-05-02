@@ -87,13 +87,13 @@ backend = args.backend
 
 neuron_class = 'IF_cond_exp_slow'
 v_init = -65.0
-v_thr = v_init + 5.0
+v_thr = v_init + 10.0
 base_params = {
     'cm': 0.2,
-    'v_reset': v_init - 20.0,  # hdbrgs
+    'v_reset': v_init - 10.0,  # hdbrgs
     'v_thresh': v_thr,
     'tau_m': 5.,
-    'tau_refrac': 5.0,
+    'tau_refrac': 10.0,
     'tau_syn_E': 2.0,
     'tau_syn_I': 5.0,
     'i_offset': 0.0,
@@ -101,7 +101,7 @@ base_params = {
     'v_rest': v_init,
     'e_rev_E': -30.0,
     'e_rev_I': -92.0,
-    'tau_slow': 20.0,
+    'tau_slow': 50.0,
     'tau_syn_E_slow': 100.0,
     'tau_syn_I_slow': 100.0,
     'v_activate_slow': -100.0,
@@ -130,7 +130,7 @@ horn_parameters = base_params.copy()
 
 decision_parameters = base_params.copy()
 decision_parameters['tau_syn_E'] = 1.0  # ms
-decision_parameters['tau_syn_I'] = 2.0  # ms
+decision_parameters['tau_syn_I'] = 5.0  # ms
 decision_parameters['tau_refrac'] = 15.0
 decision_parameters['tau_m'] = 5.0
 decision_parameters['v_reset'] = -100.0
@@ -160,13 +160,13 @@ neuron_params = {
 }
 
 # W2S = args.w2s
-W2S = 0.01
+W2S = 0.015
 
 
 # sample_dt, start_dt, max_rand_dt = 10, 5, 2
-sample_dt, start_dt, max_rand_dt = 50, 5, 3.0
+sample_dt, start_dt, max_rand_dt = 50, 5, 5.0
 sim_time = sample_dt * args.nSamplesAL * args.nPatternsAL
-timestep =  0.1
+timestep =  0.0++1
 regenerate = args.regenerateSamples
 record_all = args.recordAllOutputs and args.nSamplesAL <= 50
 fixed_loops = args.fixedNumLoops
@@ -308,12 +308,12 @@ static_w = {
     # 'LH to KC': W2S * (0.25 * (20.0 / float(args.nLH))),
 
     # 'KC to KC': W2S * (1.0 * (2500.0 / float(args.nKC))),
-    'KC to KC': W2S * (0.1 * (2500.0 / float(args.nKC))),
+    'KC to KC': W2S * (0.0000000000001 * (2500.0 / float(args.nKC))),
 
-    'KC to DN': W2S * (1.0 * (2500.0 / float(args.nKC))),
+    'KC to DN': W2S * (5.0 * (2500.0 / float(args.nKC))),
     # 'KC to DN': W2S*(2.0 * (2500.0/float(args.nKC))),
     # 'DN to DN': W2S*(0.4 * (100.0/float(args.nDN))),
-    'DN to DN': W2S * (0.01 * (100.0 / float(args.nDN))),
+    'DN to DN': W2S * (10.0 * (100.0 / float(args.nDN))),
     # 'DN to DN': W2S*(1./1.),
     # 'DN to DN': W2S*(1./(args.nDN)),
     'NS to DN': W2S * (0.5 * (100.0 / float(args.nDN))),
@@ -335,7 +335,7 @@ rand_w = {
 w_max = (static_w['KC to DN'] * 1.0) * 1.2
 # w_max = 0.2
 # w_max = W2S*(0.5 * (2500.0/float(args.nKC)))
-w_min = -2. * w_max
+# w_min = -10. * w_max
 w_min = 0.0 * w_max
 print("\nw_min = {}\tw_max = {}\n".format(w_min, w_max))
 
@@ -347,7 +347,7 @@ out_list = output_connection_list(args.nKC, args.nDN, args.probKC2DN,
                                   static_w['KC to DN'],
                                   # 0.,
                                   args.inactiveScale,
-                                  delay=3,
+                                  delay=timestep,
                                   seed=None,
                                   # seed=123456,
                                   # clip_to=np.inf
@@ -359,9 +359,9 @@ out_list = output_connection_list(args.nKC, args.nDN, args.probKC2DN,
 t_plus = 5.0
 t_minus = 15.0
 # t_minus = 20.0
-a_plus = 0.1
+a_plus = 0.01
 # a_minus = 0.05
-a_minus = 0.1
+a_minus = 0.01
 
 
 stdp = {
