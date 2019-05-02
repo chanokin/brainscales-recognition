@@ -36,11 +36,11 @@ def poisson_generator(rate, t_start, t_stop):
     return poisson_train
 
 
-def generate_input_vectors(num_vectors, dimension, on_probability, seed=1):
+def generate_input_vectors(num_vectors, dimension, on_probability, seed=1, regenerate=False):
 
-    n_active = int(on_probability*dimension)
+    n_active = int(np.round(on_probability*dimension))
     fname = 'vectors_{}_{}_{}_{}.npz'.format(num_vectors, dimension, n_active, seed)
-    if os.path.isfile(fname):
+    if not regenerate and os.path.isfile(fname):
         f = np.load(fname)
         return f['vectors']
 

@@ -219,7 +219,11 @@ sys.stdout.flush()
 sys.stdout.write('\tGenerating input vectors\n')
 sys.stdout.flush()
 
-input_vecs = generate_input_vectors(args.nPatternsAL, args.nAL, args.probAL, seed=123)
+input_vecs = generate_input_vectors(args.nPatternsAL, args.nAL, args.probAL,
+                                    seed=None,
+                                    # seed=123,
+                                    regenerate=regenerate
+                                    )
 # input_vecs = generate_input_vectors(10, 100, 0.1)
 # pprint(input_vecs)
 sys.stdout.write('\t\tDone with input vectors\n')
@@ -341,102 +345,32 @@ sys.stdout.flush()
 if neuron_class == 'IF_cond_exp':
     static_w = {
         'AL to KC': W2S * 1.0 * (100.0 / float(args.nAL)),
-        'KC to KC': W2S * (0.1 * (2500.0 / float(args.nKC))),
+        'KC to KC': W2S * (0.0000001 * (2500.0 / float(args.nKC))),
 
-        'KC to DN': W2S * (0.02 * (2500.0 / float(args.nKC))),
-        'DN to DN': W2S * (5.0 * (100.0 / float(args.nDN))),
+        'KC to DN': W2S * (0.5 * (2500.0 / float(args.nKC))),
+        'DN to DN': W2S * (2.0 * (100.0 / float(args.nDN))),
 
-        'DN to FB': W2S * (0.75 * (100.0 / float(args.nDN))),
-        'FB to DN': W2S * (1.5 * (100.0 / float(args.nDN))),
-        'TK to FB': W2S * (0.75 * (100.0 / float(args.nDN))),
+        'DN to FB': W2S * (1.5 * (100.0 / float(args.nDN))),
+        'FB to DN': W2S * (3.0 * (100.0 / float(args.nDN))),
+        'TK to FB': W2S * (1.5 * (100.0 / float(args.nDN))),
 
         'DN to TR':  W2S * (5.0 * (100.0 / float(args.nDN))),
         'TRS to TR': W2S * (1.0 * (100.0 / float(args.nDN))),
-        'TR to DN':  W2S * (0.2 * (100.0 / float(args.nDN))),
+        'TR to DN':  W2S * (0.005 * (100.0 / float(args.nDN))),
+
         # 'DN to TR':  W2S * (1.0 * (100.0 / float(args.nDN))),
         # 'TRS to TR': W2S * (0.000001 * (100.0 / float(args.nDN))),
         # 'TR to DN':  W2S * (0.00000001 * (100.0 / float(args.nDN))),
 
     }
-else:
-    #     ###___this works for 1000-10000-100
-    # static_w = {
-    #     'AL to KC': W2S * 1.0 * (100.0/ float(args.nAL)),
-    #     # 'AL to LH': W2S * (5.0 * (100.0 / float(args.nAL))),
-    #     'AL to LH': W2S * (0.001 * (100.0 / float(args.nAL))),
-    #     ### inhibitory
-    #     'LH to KC': -W2S * (0.02 * (20.0 / float(args.nLH))),
-    #     ### inhibitory
-    #     'KC to KC': -W2S * (0.01 * (2500.0 / float(args.nKC))),
-    #
-    #     'KC to DN': W2S * ((1.0 / 1.2) * (2500.0/float(args.nKC))),
-    #
-    #     'iKC to DN': -W2S * (1.0 * (2500.0 / float(args.nKC))),
-    #     ### inhibitory
-    #     'DN to DN': -W2S * (10.0 * (100.0 / float(args.nDN))),
-    #     'pair DN to DN': W2S * (0.1 * (100.0 / float(args.nDN))),
-    #
-    #     'NS to DN':  W2S * (0.001 * (100.0 / float(args.nDN))),
-    #
-    #     'DN to FB': W2S * (4.5 * (100.0 / float(args.nDN))),
-    #     'FB to DN': W2S * (10.0 * (100.0 / float(args.nDN))),
-    #     'TK to FB': W2S * (4.5 * (100.0 / float(args.nDN))),
-    #
-    #     'DN to TR': -W2S * (100.0 * (100.0 / float(args.nDN))),
-    #     'TRS to TR': W2S * (10.0 * (100.0 / float(args.nDN))),
-    #     'TR to DN': W2S * (0.5 * (100.0 / float(args.nDN))),
-    # }
-    #     ###___this works for 100-2500-100
-    # static_w = {
-    #     'AL to KC': W2S * 1.0 * (100.0/ float(args.nAL)),
-    #     'AL to LH': W2S * (0.001 * (100.0 / float(args.nAL))),
-    #     ### inhibitory
-    #     'LH to KC': -W2S * (0.02 * (20.0 / float(args.nLH))),
-    #     ### inhibitory
-    #     'KC to KC': -W2S * (0.01 * (2500.0 / float(args.nKC))),
-    #
-    #     # this works for 100-2500-100
-    #     'KC to DN': W2S * ((0.3 / 1.2) * (2500.0/float(args.nKC))),
-    #
-    #     'iKC to DN': -W2S * (1.0 * (2500.0 / float(args.nKC))),
-    #     ### inhibitory
-    #     'DN to DN': -W2S * (10.0 * (100.0 / float(args.nDN))),
-    #     'pair DN to DN': W2S * (0.1 * (100.0 / float(args.nDN))),
-    #
-    #     'NS to DN':  W2S * (0.001 * (100.0 / float(args.nDN))),
-    #
-    #     'DN to FB': W2S * (5.0 * (100.0 / float(args.nDN))),
-    #     'FB to DN': W2S * (10.0 * (100.0 / float(args.nDN))),
-    #     'TK to FB': W2S * (5.0 * (100.0 / float(args.nDN))),
-    #
-    #     'DN to TR': -W2S * (100.0 * (100.0 / float(args.nDN))),
-    #     'TRS to TR': W2S * (10.0 * (100.0 / float(args.nDN))),
-    #     'TR to DN': W2S * (1.0 * (100.0 / float(args.nDN))),
-    # }
-    #     ###___this works for 1000-10000-100
-    static_w = {
-        'AL to KC': W2S * 1.0 * (100.0/ float(args.nAL)),
-        ### inhibitory
-        'KC to KC': -W2S * (0.5 * (2500.0 / float(args.nKC))),
-        'KC to DN': W2S * ((0.4 / 1.2) * (2500.0/float(args.nKC))),
-        ### inhibitory
-        'DN to DN': -W2S * (5.0 * (100.0 / float(args.nDN))),
 
-        'DN to FB': W2S * (4. * (100.0 / float(args.nDN))),
-        'FB to DN': W2S * (10.0 * (100.0 / float(args.nDN))),
-        'TK to FB': W2S * (4. * (100.0 / float(args.nDN))),
-
-        'DN to TR': -W2S * (100.0 * (100.0 / float(args.nDN))),
-        'TRS to TR': W2S * (10.0 * (100.0 / float(args.nDN))),
-        'TR to DN': W2S * (0.5 * (100.0 / float(args.nDN))),
-    }
 
 rand_w = {
     'AL to KC': static_w['AL to KC'],
 }
 
 w_max = (static_w['KC to DN'] * 1.0) * 1.2
-w_min = -2. * w_max
+w_min = -2.0 * w_max
 print("\nw_min = {}\tw_max = {}\n".format(w_min, w_max))
 
 gain_list = []
@@ -481,10 +415,10 @@ projections = {
                            target='excitatory', label='AL to KC'),
 
     ### Inhibitory feedback --- kenyon cells
-    'KC to KC': pynnx.Proj(populations['kenyon'], populations['kenyon'],
-                            'AllToAllConnector', weights=static_w['KC to KC'], delays=timestep,
-                            conn_params={'allow_self_connections': False},
-                           target='inhibitory', label='KC to KC'),
+    # 'KC to KC': pynnx.Proj(populations['kenyon'], populations['kenyon'],
+    #                         'AllToAllConnector', weights=static_w['KC to KC'], delays=timestep,
+    #                         conn_params={'allow_self_connections': False},
+    #                        target='inhibitory', label='KC to KC'),
 
     'KC to DN': pynnx.Proj(populations['kenyon'], populations['decision'],
                            'FromListConnector', weights=None, delays=None,

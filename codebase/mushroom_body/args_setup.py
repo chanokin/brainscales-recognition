@@ -57,7 +57,7 @@ def get_args():
     parser.add_argument('--recordAllOutputs', type=str2bool, default='False',
         help='Whether to record as many output variables as possible')
 
-    parser.add_argument('--fixedNumLoops', type=int, default=10,
+    parser.add_argument('--fixedNumLoops', type=int, default=1,
         help='How many weight recording loops to execute. If zero, 1% of nSamplesAL will be chosen')
 
 

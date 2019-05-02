@@ -270,7 +270,7 @@ class PyNNAL(object):
             conn_text = conn_class
             conn_class = self._get_obj(conn_class)
         else:
-            conn_text == conn_class.__name__
+            conn_text = conn_class.__name__
 
         sim = self._sim
 
@@ -293,6 +293,8 @@ class PyNNAL(object):
             conn = conn_class(**tmp)
             
             if stdp is not None:
+                rule_txt = stdp.get('rule', 'STDPMechanism')
+                rule = self._get_obj(rule_txt)
                 ### Compatibility between versions - change parameters to the other description
                 if 'A_plus' in stdp['timing_dependence']['params']:
                     stdp['weight_dependence']['params']['A_plus'] = \
@@ -305,7 +307,7 @@ class PyNNAL(object):
                     del stdp['timing_dependence']['params']['A_minus']
 
                 syn_dyn = sim.SynapseDynamics(
-                            slow=sim.STDPMechanism(
+                            slow=rule(
                                 timing_dependence=self._get_stdp_dep(stdp['timing_dependence']),
                                 weight_dependence=self._get_stdp_dep(stdp['weight_dependence']))
                             )
@@ -317,6 +319,8 @@ class PyNNAL(object):
             
         else:
             if stdp is not None:
+                rule_txt = stdp.get('rule', 'STDPMechanism')
+                rule = self._get_obj(rule_txt)
                 ### Compatibility between versions - change parameters to the other description
                 if 'A_plus' in stdp['weight_dependence']['params']:
                     stdp['timing_dependence']['params']['A_plus'] = \
@@ -328,7 +332,7 @@ class PyNNAL(object):
                         stdp['weight_dependence']['params']['A_minus']
                     del stdp['weight_dependence']['params']['A_minus']
 
-                synapse = sim.STDPMechanism(
+                synapse = rule(
                     timing_dependence=self._get_stdp_dep(stdp['timing_dependence']),
                     weight_dependence=self._get_stdp_dep(stdp['weight_dependence']),
                     weight=weights, delay=delays)
