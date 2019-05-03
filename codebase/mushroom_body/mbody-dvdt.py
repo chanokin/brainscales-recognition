@@ -101,7 +101,7 @@ base_params = {
     'v_rest': v_init,
     'e_rev_E': -30.0,
     'e_rev_I': -92.0,
-    'tau_slow': 50.0,
+    'tau_slow': 30.0,
     'tau_syn_E_slow': 100.0,
     'tau_syn_I_slow': 100.0,
     'v_activate_slow': -100.0,
@@ -133,7 +133,8 @@ decision_parameters['tau_syn_E'] = 1.0  # ms
 decision_parameters['tau_syn_I'] = 5.0  # ms
 decision_parameters['tau_refrac'] = 15.0
 decision_parameters['tau_m'] = 5.0
-decision_parameters['v_reset'] = -100.0
+decision_parameters['i_offset'] = -0.5
+# decision_parameters['v_reset'] = -100.0
 
 np.random.seed(321)
 # decision_parameters['v_thresh'] = np.random.normal(-50.0, 5.0, size=args.nDN)
@@ -166,7 +167,7 @@ W2S = 0.015
 # sample_dt, start_dt, max_rand_dt = 10, 5, 2
 sample_dt, start_dt, max_rand_dt = 50, 5, 5.0
 sim_time = sample_dt * args.nSamplesAL * args.nPatternsAL
-timestep =  0.0++1
+timestep =  0.1
 regenerate = args.regenerateSamples
 record_all = args.recordAllOutputs and args.nSamplesAL <= 50
 fixed_loops = args.fixedNumLoops
@@ -283,7 +284,7 @@ populations = {
 
 pynnx.set_recording(populations['decision'], 'spikes')
 np.random.seed()
-v_init = np.random.uniform(-120.0, -50.0, size=args.nDN)
+v_init = np.random.uniform(-92.0, -50.0, size=args.nDN)
 populations['decision'].initialize(v=v_init, v_slow=v_init, v_slow_old=v_init)
 
 pynnx.set_recording(populations['kenyon'], 'spikes')
@@ -292,6 +293,7 @@ if record_all:
     # pynnx.set_recording(populations['feedback'], 'spikes')
     # pynnx.set_recording(populations['exciter'], 'spikes')
     pynnx.set_recording(populations['decision'], 'v')
+    pynnx.set_recording(populations['decision'], 'dvdt')
     pynnx.set_recording(populations['kenyon'], 'v')
 
 
@@ -310,10 +312,10 @@ static_w = {
     # 'KC to KC': W2S * (1.0 * (2500.0 / float(args.nKC))),
     'KC to KC': W2S * (0.0000000000001 * (2500.0 / float(args.nKC))),
 
-    'KC to DN': W2S * (5.0 * (2500.0 / float(args.nKC))),
+    'KC to DN': W2S * (1.5 * (2500.0 / float(args.nKC))),
     # 'KC to DN': W2S*(2.0 * (2500.0/float(args.nKC))),
     # 'DN to DN': W2S*(0.4 * (100.0/float(args.nDN))),
-    'DN to DN': W2S * (10.0 * (100.0 / float(args.nDN))),
+    'DN to DN': W2S * (5.0 * (100.0 / float(args.nDN))),
     # 'DN to DN': W2S*(1./1.),
     # 'DN to DN': W2S*(1./(args.nDN)),
     'NS to DN': W2S * (0.5 * (100.0 / float(args.nDN))),
@@ -598,6 +600,7 @@ if record_all:
     sys.stdout.flush()
 
     dn_voltage = pynnx.get_record(populations['decision'], 'v')
+    dn_dvdt = pynnx.get_record(populations['decision'], 'dvdt')
     kc_voltage = pynnx.get_record(populations['kenyon'], 'v')
 
     sys.stdout.write('Done!\tGetting voltages\n\n')
@@ -605,6 +608,7 @@ if record_all:
 
 else:
     dn_voltage = [np.array([[0, 0]])]
+    dn_dvdt = [np.array([[0, 0]])]
     kc_voltage = [np.array([[0, 0]])]
 
 sys.stdout.write('Getting weights:\n')
@@ -636,7 +640,7 @@ np.savez_compressed(fname, args=args, sim_time=sim_time,
                     kenyon_spikes=k_spikes, decision_spikes=out_spikes, horn_spikes=horn_spikes,
                     neuron_parameters=neuron_params,
                     sample_dt=sample_dt, start_dt=start_dt, max_rand_dt=max_rand_dt,
-                    dn_voltage=dn_voltage, kc_voltage=kc_voltage,
+                    dn_voltage=dn_voltage, dn_dvdt=dn_dvdt, kc_voltage=kc_voltage,
                     high_dt=high_dt,
                     low_freq=low_freq, high_freq=high_freq,
                     weights=weights, weight_sample_dt=weight_sample_dt,

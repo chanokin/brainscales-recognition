@@ -393,7 +393,7 @@ class PyNNAL(object):
             pop.set(**{attr_name: attr_val})
 
     def check_rec(self, recording):
-        if recording not in ['spikes', 'v', 'gsyn']:
+        if recording not in ['spikes', 'v', 'gsyn', 'dvdt']:
             raise Exception('Recording {} is not supported'.format(recording))
 
 
