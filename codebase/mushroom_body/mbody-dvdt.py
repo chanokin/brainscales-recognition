@@ -161,7 +161,7 @@ neuron_params = {
 }
 
 # W2S = args.w2s
-W2S = 0.015
+W2S = 0.0125
 
 
 # sample_dt, start_dt, max_rand_dt = 10, 5, 2
@@ -184,7 +184,9 @@ sys.stdout.flush()
 sys.stdout.write('\tGenerating input vectors\n')
 sys.stdout.flush()
 
-input_vecs = generate_input_vectors(args.nPatternsAL, args.nAL, args.probAL, seed=123)
+input_vecs = generate_input_vectors(args.nPatternsAL, args.nAL, args.probAL,
+                                    seed=123,
+                                    regenerate=regenerate)
 # input_vecs = generate_input_vectors(10, 100, 0.1)
 # pprint(input_vecs)
 sys.stdout.write('\t\tDone with input vectors\n')
@@ -312,7 +314,7 @@ static_w = {
     # 'KC to KC': W2S * (1.0 * (2500.0 / float(args.nKC))),
     'KC to KC': W2S * (0.0000000000001 * (2500.0 / float(args.nKC))),
 
-    'KC to DN': W2S * (1.5 * (2500.0 / float(args.nKC))),
+    'KC to DN': W2S * (2.0 * (2500.0 / float(args.nKC))),
     # 'KC to DN': W2S*(2.0 * (2500.0/float(args.nKC))),
     # 'DN to DN': W2S*(0.4 * (100.0/float(args.nDN))),
     'DN to DN': W2S * (5.0 * (100.0 / float(args.nDN))),
@@ -338,7 +340,7 @@ w_max = (static_w['KC to DN'] * 1.0) * 1.2
 # w_max = 0.2
 # w_max = W2S*(0.5 * (2500.0/float(args.nKC)))
 # w_min = -10. * w_max
-w_min = 0.0 * w_max
+w_min = -0.1 * w_max
 print("\nw_min = {}\tw_max = {}\n".format(w_min, w_max))
 
 gain_list = gain_control_list(args.nAL, args.nLH, static_w['AL to LH'],
