@@ -55,7 +55,7 @@ def plot_signal(signal, index, colour=None):
     plt.ylabel("%s (%s)" % (signal.name, signal.units._dimensionality.string))
 
 
-N_NEURONS = 20000
+N_NEURONS = 2#0000
 test = N_NEURONS <= 10
 start_w = 0.001
 noise_w = 0.05
@@ -173,11 +173,11 @@ if test and len(post_data.segments):
     out_spikes = np.array(data.spiketrains)
     plt.figure()
     plt.suptitle('Spikes')
-    plot_spiketrains(data, marker='x', color='red')
+    plot_spiketrains(data, marker='>', color='red', label='input')
 
     data = post_data.segments[0]
     out_spikes = np.array(data.spiketrains)
-    plot_spiketrains(data)
+    plot_spiketrains(data, marker='^', color='green', label='post')
     plt.xlabel("time (%s)" % data.analogsignals[0].times.units._dimensionality.string)
 
     # plt.figure()

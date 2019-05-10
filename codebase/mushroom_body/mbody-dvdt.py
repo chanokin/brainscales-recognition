@@ -85,7 +85,8 @@ pprint(args)
 
 backend = args.backend
 
-neuron_class = 'IF_cond_exp_slow'
+# neuron_class = 'IF_cond_exp_slow'
+neuron_class = 'IF_curr_exp_slow'
 v_init = -65.0
 v_thr = v_init + 10.0
 base_params = {
@@ -99,8 +100,8 @@ base_params = {
     'i_offset': 0.0,
     # ESS - BrainScaleS
     'v_rest': v_init,
-    'e_rev_E': -30.0,
-    'e_rev_I': -92.0,
+    # 'e_rev_E': -30.0,
+    # 'e_rev_I': -92.0,
     'tau_slow': 30.0,
     'tau_syn_E_slow': 100.0,
     'tau_syn_I_slow': 100.0,
@@ -115,7 +116,7 @@ base_params = {
 kenyon_parameters = base_params.copy()
 kenyon_parameters['tau_refrac'] = 1.0  # ms
 kenyon_parameters['tau_syn_E'] = 1.0  # ms
-kenyon_parameters['tau_syn_I'] = 1.0  # ms
+kenyon_parameters['tau_syn_I'] = 10.0  # ms
 kenyon_parameters['tau_m'] = 10.0  # ms
 # kenyon_parameters['v_thresh'] = np.random.normal(-53.0, 1.0, size=args.nKC)
 # kenyon_parameters['v_reset'] = -65.0
@@ -130,11 +131,15 @@ horn_parameters = base_params.copy()
 
 decision_parameters = base_params.copy()
 decision_parameters['tau_syn_E'] = 1.0  # ms
-decision_parameters['tau_syn_I'] = 5.0  # ms
-decision_parameters['tau_refrac'] = 15.0
+decision_parameters['tau_syn_I'] = 10.0  # ms
+decision_parameters['tau_refrac'] = 5.0
 decision_parameters['tau_m'] = 5.0
-decision_parameters['i_offset'] = -0.5
+decision_parameters['i_offset'] = 0.0
 # decision_parameters['v_reset'] = -100.0
+# decision_parameters['v_thresh_max'] = v_thr + 10.0
+# decision_parameters['v_thresh_min'] = v_thr - 0.1
+# decision_parameters['thresh_mult_up'] = 1.1
+# decision_parameters['thresh_mult_down'] = 0.999999999
 
 np.random.seed(321)
 # decision_parameters['v_thresh'] = np.random.normal(-50.0, 5.0, size=args.nDN)
@@ -148,11 +153,11 @@ fb_parameters = base_params.copy()
 
 
 exciter_parameters = base_params.copy()
-# exciter_parameters['tau_refrac'] = 1.0  # ms
-# exciter_parameters['tau_syn_E'] = 1.0  # ms
-# exciter_parameters['tau_syn_I'] = 100.0  # ms
-# exciter_parameters['tau_m'] = 5.0  # ms
-# exciter_parameters['v_reset'] = -65.0  # ms
+exciter_parameters['tau_refrac'] = 1.0  # ms
+exciter_parameters['tau_syn_E'] = 1.0  # ms
+exciter_parameters['tau_syn_I'] = 100.0  # ms
+exciter_parameters['tau_m'] = 5.0  # ms
+exciter_parameters['v_reset'] = -65.0  # ms
 
 neuron_params = {
     'base': base_params, 'kenyon': kenyon_parameters,
@@ -162,6 +167,7 @@ neuron_params = {
 
 # W2S = args.w2s
 W2S = 0.0125
+W2S = 0.5
 
 
 # sample_dt, start_dt, max_rand_dt = 10, 5, 2
@@ -274,13 +280,13 @@ populations = {
     #                       fb_parameters, label='Feedback Neurons'),
 
     ### add current if neuron hasn't spiked yet
-    # 'exciter': pynnx.Pop(args.nDN, neuron_class,
-    #                      exciter_parameters, label='Threshold reducer'),
-    #
-    # 'exciter src': pynnx.Pop(args.nDN, 'SpikeSourcePoisson',
-    #                    {'rate': 1000.0, 'start': start_dt,
-    #                     'duration': n_exciter_samples * sample_dt},
-    #                    label='threshold reducer source'),
+    'exciter': pynnx.Pop(args.nDN, neuron_class,
+                         exciter_parameters, label='Threshold reducer'),
+
+    'exciter src': pynnx.Pop(args.nDN, 'SpikeSourcePoisson',
+                       {'rate': 1000.0, 'start': start_dt,
+                        'duration': n_exciter_samples * sample_dt},
+                       label='threshold reducer source'),
 
 }
 
@@ -293,7 +299,7 @@ pynnx.set_recording(populations['kenyon'], 'spikes')
 if record_all:
     # pynnx.set_recording(populations['horn'], 'spikes')
     # pynnx.set_recording(populations['feedback'], 'spikes')
-    # pynnx.set_recording(populations['exciter'], 'spikes')
+    pynnx.set_recording(populations['exciter'], 'spikes')
     pynnx.set_recording(populations['decision'], 'v')
     pynnx.set_recording(populations['decision'], 'dvdt')
     pynnx.set_recording(populations['kenyon'], 'v')
@@ -312,22 +318,31 @@ static_w = {
     # 'LH to KC': W2S * (0.25 * (20.0 / float(args.nLH))),
 
     # 'KC to KC': W2S * (1.0 * (2500.0 / float(args.nKC))),
-    'KC to KC': W2S * (0.0000000000001 * (2500.0 / float(args.nKC))),
+    'KC to KC': W2S * (0.05 * (2500.0 / float(args.nKC))),
 
-    'KC to DN': W2S * (2.0 * (2500.0 / float(args.nKC))),
+    'KC to DN': W2S * (0.8 * (2500.0 / float(args.nKC))),
     # 'KC to DN': W2S*(2.0 * (2500.0/float(args.nKC))),
     # 'DN to DN': W2S*(0.4 * (100.0/float(args.nDN))),
-    'DN to DN': W2S * (5.0 * (100.0 / float(args.nDN))),
+    # 'DN to DN': W2S * (0.001 * (100.0 / float(args.nDN))),
+    'DN to DN': W2S * (1.0 * (100.0 / float(args.nDN))),
     # 'DN to DN': W2S*(1./1.),
     # 'DN to DN': W2S*(1./(args.nDN)),
-    'NS to DN': W2S * (0.5 * (100.0 / float(args.nDN))),
+    # 'NS to DN': W2S * (0.5 * (100.0 / float(args.nDN))),
+    # 'NS to KC': W2S * (5.0 * (2500.0 / float(args.nKC))),
 
-    'NS to KC': W2S * (5.0 * (2500.0 / float(args.nKC))),
+    'DN to TR': W2S * (5.0 * (100.0 / float(args.nDN))),
+    'TRS to TR': W2S * (2.0 * (100.0 / float(args.nDN))),
+    'TR to DN': W2S * (0.001 * (100.0 / float(args.nDN))),
 
-    'DN to FB': W2S * (1.0 * (100.0 / float(args.nDN))),
-    'FB to DN': W2S * (1.0 * (100.0 / float(args.nDN))),
-    'TK to FB': W2S * (1.0 * (100.0 / float(args.nDN))),
+    # 'DN to FB': W2S * (1.0 * (100.0 / float(args.nDN))),
+    # 'FB to DN': W2S * (1.0 * (100.0 / float(args.nDN))),
+    # 'TK to FB': W2S * (1.0 * (100.0 / float(args.nDN))),
 }
+
+if neuron_class == 'IF_curr_exp_slow':
+    static_w['KC to KC'] = -static_w['KC to KC']
+    static_w['DN to DN'] = -static_w['DN to DN']
+    static_w['DN to TR'] = -static_w['DN to TR']
 
 rand_w = {
     'AL to KC': static_w['AL to KC'],
@@ -340,7 +355,7 @@ w_max = (static_w['KC to DN'] * 1.0) * 1.2
 # w_max = 0.2
 # w_max = W2S*(0.5 * (2500.0/float(args.nKC)))
 # w_min = -10. * w_max
-w_min = -0.1 * w_max
+w_min = -1.0 * w_max
 print("\nw_min = {}\tw_max = {}\n".format(w_min, w_max))
 
 gain_list = gain_control_list(args.nAL, args.nLH, static_w['AL to LH'],
@@ -363,9 +378,9 @@ out_list = output_connection_list(args.nKC, args.nDN, args.probKC2DN,
 t_plus = 5.0
 t_minus = 15.0
 # t_minus = 20.0
-a_plus = 0.01
+a_plus = 0.1
 # a_minus = 0.05
-a_minus = 0.01
+a_minus = 0.1
 
 
 stdp = {
@@ -480,17 +495,17 @@ projections = {
     #                        target='excitatory', label='TK to FB'),
 
     ### have some more current comming into decicions if they have not spiked recently
-    # 'TR to DN': pynnx.Proj(populations['exciter'], populations['decision'],
-    #                        'OneToOneConnector', weights=static_w['TR to DN'], delays=1.0,
-    #                        target='excitatory', label='TR to DN'),
-    #
-    # 'DN to TR': pynnx.Proj(populations['decision'], populations['exciter'],
-    #                        'OneToOneConnector', weights=static_w['DN to TR'], delays=timestep,
-    #                        target='inhibitory', label='DN to TR'),
-    #
-    # 'TRS to TR': pynnx.Proj(populations['exciter src'], populations['exciter'],
-    #                        'OneToOneConnector', weights=static_w['TRS to TR'], delays=1.0,
-    #                        target='excitatory', label='TR to TR'),
+    'TR to DN': pynnx.Proj(populations['exciter'], populations['decision'],
+                           'OneToOneConnector', weights=static_w['TR to DN'], delays=timestep,
+                           target='excitatory', label='TR to DN'),
+
+    'DN to TR': pynnx.Proj(populations['decision'], populations['exciter'],
+                           'OneToOneConnector', weights=static_w['DN to TR'], delays=timestep,
+                           target='inhibitory', label='DN to TR'),
+
+    'TRS to TR': pynnx.Proj(populations['exciter src'], populations['exciter'],
+                           'OneToOneConnector', weights=static_w['TRS to TR'], delays=timestep,
+                           target='excitatory', label='TR to TR'),
 
 }
 
@@ -585,8 +600,8 @@ if record_all:
 
     sys.stdout.write('\tExciter\n')
     sys.stdout.flush()
-    # exciter_spikes = pynnx.get_record(populations['exciter'], 'spikes')
-    exciter_spikes = [[]]
+    exciter_spikes = pynnx.get_record(populations['exciter'], 'spikes')
+    # exciter_spikes = [[]]
 
 else:
     horn_spikes = [[]]
