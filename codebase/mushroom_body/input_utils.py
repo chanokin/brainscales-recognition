@@ -225,3 +225,35 @@ def generate_tick_spikes(samples, sample_dt, start_dt, num_test_samples, delay):
         t += sample_dt
 
     return ticks
+
+def add_noise_to_samples(input_vectors, samples, n_other_pattern, seed=1, regenerate=False):
+    np.random.seed(seed)
+
+    num_samples = len(samples)
+    fname = 'overlap_samples_{}_{}_{}_{}_{}.npz'.format(
+        input_vectors.shape[0], input_vectors.shape[1], num_samples, n_other_pattern, seed)
+
+    if os.path.isfile(fname) and not regenerate:
+        f = np.load(fname)
+        return f['samples']
+
+    noisy_samples = None
+    for idx_samp, samp in enumerate(samples):
+        nsamp = samp.copy().reshape(1, -1)
+        # print(nsamp.shape)
+        whr = np.where(samp == 0)[0]
+        activate = np.random.choice(whr, size=n_other_pattern, replace=False)
+        nsamp[0, activate] = 1
+
+        if noisy_samples is None:
+            noisy_samples = nsamp
+        else:
+            noisy_samples = np.append(noisy_samples, nsamp, axis=0)
+
+    # print(noisy_samples.shape)
+    np.savez_compressed(fname, samples=noisy_samples)
+
+    sys.stdout.write('\n')
+    sys.stdout.flush()
+
+    return noisy_samples

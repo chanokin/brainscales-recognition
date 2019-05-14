@@ -399,14 +399,16 @@ class PyNNAL(object):
 
     def set_recording(self, pop, recording):
         self.check_rec(recording)
+        pop_name = pop.label.replace(' ', '_')
         if self._ver() == 7:
             if recording == 'spikes':
                 pop.record()
             else:
                 rec = getattr(pop, 'record_'+recording) #indirectly get method
                 rec() #execute method :ugly-a-f:
-        else:             
-            pop.record(recording)
+        else:
+
+            pop.record(recording)#, to_file='pop_%s_recording_%s.npz'%(pop_name, recording))
 
     def get_record(self, pop, recording):
         self.check_rec(recording)

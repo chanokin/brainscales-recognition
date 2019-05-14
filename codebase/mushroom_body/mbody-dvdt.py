@@ -299,10 +299,10 @@ pynnx.set_recording(populations['kenyon'], 'spikes')
 if record_all:
     # pynnx.set_recording(populations['horn'], 'spikes')
     # pynnx.set_recording(populations['feedback'], 'spikes')
-    pynnx.set_recording(populations['exciter'], 'spikes')
+    # pynnx.set_recording(populations['exciter'], 'spikes')
     pynnx.set_recording(populations['decision'], 'v')
-    pynnx.set_recording(populations['decision'], 'dvdt')
-    pynnx.set_recording(populations['kenyon'], 'v')
+    # pynnx.set_recording(populations['decision'], 'dvdt')
+    # pynnx.set_recording(populations['kenyon'], 'v')
 
 
 sys.stdout.write('Creating projections\n')
@@ -320,11 +320,11 @@ static_w = {
     # 'KC to KC': W2S * (1.0 * (2500.0 / float(args.nKC))),
     'KC to KC': W2S * (0.05 * (2500.0 / float(args.nKC))),
 
-    'KC to DN': W2S * (0.8 * (2500.0 / float(args.nKC))),
+    'KC to DN': W2S * (0.4 * (2500.0 / float(args.nKC))),
     # 'KC to DN': W2S*(2.0 * (2500.0/float(args.nKC))),
     # 'DN to DN': W2S*(0.4 * (100.0/float(args.nDN))),
     # 'DN to DN': W2S * (0.001 * (100.0 / float(args.nDN))),
-    'DN to DN': W2S * (1.0 * (100.0 / float(args.nDN))),
+    'DN to DN': W2S * (2.0 * (100.0 / float(args.nDN))),
     # 'DN to DN': W2S*(1./1.),
     # 'DN to DN': W2S*(1./(args.nDN)),
     # 'NS to DN': W2S * (0.5 * (100.0 / float(args.nDN))),
@@ -355,7 +355,7 @@ w_max = (static_w['KC to DN'] * 1.0) * 1.2
 # w_max = 0.2
 # w_max = W2S*(0.5 * (2500.0/float(args.nKC)))
 # w_min = -10. * w_max
-w_min = -1.0 * w_max
+w_min = -0.0 * w_max
 print("\nw_min = {}\tw_max = {}\n".format(w_min, w_max))
 
 gain_list = gain_control_list(args.nAL, args.nLH, static_w['AL to LH'],
@@ -617,8 +617,10 @@ if record_all:
     sys.stdout.flush()
 
     dn_voltage = pynnx.get_record(populations['decision'], 'v')
-    dn_dvdt = pynnx.get_record(populations['decision'], 'dvdt')
-    kc_voltage = pynnx.get_record(populations['kenyon'], 'v')
+    # dn_dvdt = pynnx.get_record(populations['decision'], 'dvdt')
+    dn_dvdt = [np.array([[0, 0]])]
+    # kc_voltage = pynnx.get_record(populations['kenyon'], 'v')
+    kc_voltage = [np.array([[0, 0]])]
 
     sys.stdout.write('Done!\tGetting voltages\n\n')
     sys.stdout.flush()

@@ -366,43 +366,16 @@ else:
     #     'TR to DN': W2S * (0.5 * (100.0 / float(args.nDN))),
     # }
     #     ###___this works for 100-2500-100
-    # static_w = {
-    #     'AL to KC': W2S * 1.0 * (100.0/ float(args.nAL)),
-    #     'AL to LH': W2S * (0.001 * (100.0 / float(args.nAL))),
-    #     ### inhibitory
-    #     'LH to KC': -W2S * (0.02 * (20.0 / float(args.nLH))),
-    #     ### inhibitory
-    #     'KC to KC': -W2S * (0.01 * (2500.0 / float(args.nKC))),
-    #
-    #     # this works for 100-2500-100
-    #     'KC to DN': W2S * ((0.3 / 1.2) * (2500.0/float(args.nKC))),
-    #
-    #     'iKC to DN': -W2S * (1.0 * (2500.0 / float(args.nKC))),
-    #     ### inhibitory
-    #     'DN to DN': -W2S * (10.0 * (100.0 / float(args.nDN))),
-    #     'pair DN to DN': W2S * (0.1 * (100.0 / float(args.nDN))),
-    #
-    #     'NS to DN':  W2S * (0.001 * (100.0 / float(args.nDN))),
-    #
-    #     'DN to FB': W2S * (5.0 * (100.0 / float(args.nDN))),
-    #     'FB to DN': W2S * (10.0 * (100.0 / float(args.nDN))),
-    #     'TK to FB': W2S * (5.0 * (100.0 / float(args.nDN))),
-    #
-    #     'DN to TR': -W2S * (100.0 * (100.0 / float(args.nDN))),
-    #     'TRS to TR': W2S * (10.0 * (100.0 / float(args.nDN))),
-    #     'TR to DN': W2S * (1.0 * (100.0 / float(args.nDN))),
-    # }
-    #     ###___this works for 1000-10000-100
     static_w = {
         'AL to KC': W2S * 1.0 * (100.0/ float(args.nAL)),
-        # 'AL to LH': W2S * (5.0 * (100.0 / float(args.nAL))),
         'AL to LH': W2S * (0.001 * (100.0 / float(args.nAL))),
         ### inhibitory
         'LH to KC': -W2S * (0.02 * (20.0 / float(args.nLH))),
         ### inhibitory
         'KC to KC': -W2S * (0.01 * (2500.0 / float(args.nKC))),
 
-        'KC to DN': W2S * ((0.4 / 1.2) * (2500.0/float(args.nKC))),
+        # this works for 100-2500-100
+        'KC to DN': W2S * ((0.3 / 1.2) * (2500.0/float(args.nKC))),
 
         'iKC to DN': -W2S * (1.0 * (2500.0 / float(args.nKC))),
         ### inhibitory
@@ -411,14 +384,41 @@ else:
 
         'NS to DN':  W2S * (0.001 * (100.0 / float(args.nDN))),
 
-        'DN to FB': W2S * (4. * (100.0 / float(args.nDN))),
+        'DN to FB': W2S * (5.0 * (100.0 / float(args.nDN))),
         'FB to DN': W2S * (10.0 * (100.0 / float(args.nDN))),
-        'TK to FB': W2S * (4. * (100.0 / float(args.nDN))),
+        'TK to FB': W2S * (5.0 * (100.0 / float(args.nDN))),
 
         'DN to TR': -W2S * (100.0 * (100.0 / float(args.nDN))),
         'TRS to TR': W2S * (10.0 * (100.0 / float(args.nDN))),
-        'TR to DN': W2S * (0.5 * (100.0 / float(args.nDN))),
+        'TR to DN': W2S * (1.0 * (100.0 / float(args.nDN))),
     }
+    #     ###___this works for 1000-10000-100
+    # static_w = {
+    #     'AL to KC': W2S * 1.0 * (100.0/ float(args.nAL)),
+    #     # 'AL to LH': W2S * (5.0 * (100.0 / float(args.nAL))),
+    #     'AL to LH': W2S * (0.001 * (100.0 / float(args.nAL))),
+    #     ### inhibitory
+    #     'LH to KC': -W2S * (0.02 * (20.0 / float(args.nLH))),
+    #     ### inhibitory
+    #     'KC to KC': -W2S * (0.01 * (2500.0 / float(args.nKC))),
+    #
+    #     'KC to DN': W2S * ((0.4 / 1.2) * (2500.0/float(args.nKC))),
+    #
+    #     'iKC to DN': -W2S * (1.0 * (2500.0 / float(args.nKC))),
+    #     ### inhibitory
+    #     'DN to DN': -W2S * (10.0 * (100.0 / float(args.nDN))),
+    #     'pair DN to DN': W2S * (0.1 * (100.0 / float(args.nDN))),
+    #
+    #     'NS to DN':  W2S * (0.001 * (100.0 / float(args.nDN))),
+    #
+    #     'DN to FB': W2S * (4. * (100.0 / float(args.nDN))),
+    #     'FB to DN': W2S * (10.0 * (100.0 / float(args.nDN))),
+    #     'TK to FB': W2S * (4. * (100.0 / float(args.nDN))),
+    #
+    #     'DN to TR': -W2S * (100.0 * (100.0 / float(args.nDN))),
+    #     'TRS to TR': W2S * (10.0 * (100.0 / float(args.nDN))),
+    #     'TR to DN': W2S * (0.5 * (100.0 / float(args.nDN))),
+    # }
 
 rand_w = {
     'AL to KC': static_w['AL to KC'],
