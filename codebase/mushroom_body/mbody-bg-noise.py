@@ -174,6 +174,7 @@ W2S = args.w2s
 if neuron_class == 'IF_curr_exp':
     ###___this works for 100-2500-100
     W2S *= 0.6/ 0.0025
+    W2S = 0.4
     ###___this works for 100-1000-100
     # W2S *= 0.9/ 0.0025
     ###___this works for 49-500-49
@@ -192,6 +193,8 @@ n_test_samples = min(1000, np.round(args.nSamplesAL * args.nPatternsAL * 1.0/6.0
 use_poisson_input = bool(0)
 high_dt = 3
 low_freq, high_freq = 10, 100
+n_other_pattern = int(args.probAL * args.nAL * 1.0)
+n_noisy_samples = int(args.nSamplesAL * args.nPatternsAL)# - n_test_samples)
 
 sys.stdout.write('Creating input patterns\n')
 sys.stdout.flush()
@@ -214,8 +217,8 @@ samples = generate_samples(input_vecs, args.nSamplesAL, args.probNoiseSamplesAL,
                            method='exact',
                            regenerate=regenerate)
 
-n_other_pattern = int(args.probAL * args.nAL)
-noise_samples = add_noise_to_samples(input_vecs, samples, n_other_pattern,
+
+noise_samples = add_noise_to_samples(input_vecs, samples, n_other_pattern, n_noisy_samples,
                                      seed=456, regenerate=regenerate)
 # pprint(samples)
 sys.stdout.write('\t\tdone with samples\n')
@@ -309,7 +312,7 @@ if record_all:
     pynnx.set_recording(populations['horn'], 'spikes')
     pynnx.set_recording(populations['feedback'], 'spikes')
     pynnx.set_recording(populations['decision'], 'v')
-    pynnx.set_recording(populations['kenyon'], 'v')
+    # pynnx.set_recording(populations['kenyon'], 'v')
     pynnx.set_recording(populations['exciter'], 'spikes')
 
 sys.stdout.write('Creating projections\n')
@@ -342,36 +345,8 @@ if neuron_class == 'IF_cond_exp':
 
     }
 else:
-    #     ###___this works for 1000-10000-100
-    # static_w = {
-    #     'AL to KC': W2S * 1.0 * (100.0/ float(args.nAL)),
-    #     # 'AL to LH': W2S * (5.0 * (100.0 / float(args.nAL))),
-    #     'AL to LH': W2S * (0.001 * (100.0 / float(args.nAL))),
-    #     ### inhibitory
-    #     'LH to KC': -W2S * (0.02 * (20.0 / float(args.nLH))),
-    #     ### inhibitory
-    #     'KC to KC': -W2S * (0.01 * (2500.0 / float(args.nKC))),
-    #
-    #     'KC to DN': W2S * ((1.0 / 1.2) * (2500.0/float(args.nKC))),
-    #
-    #     'iKC to DN': -W2S * (1.0 * (2500.0 / float(args.nKC))),
-    #     ### inhibitory
-    #     'DN to DN': -W2S * (10.0 * (100.0 / float(args.nDN))),
-    #     'pair DN to DN': W2S * (0.1 * (100.0 / float(args.nDN))),
-    #
-    #     'NS to DN':  W2S * (0.001 * (100.0 / float(args.nDN))),
-    #
-    #     'DN to FB': W2S * (4.5 * (100.0 / float(args.nDN))),
-    #     'FB to DN': W2S * (10.0 * (100.0 / float(args.nDN))),
-    #     'TK to FB': W2S * (4.5 * (100.0 / float(args.nDN))),
-    #
-    #     'DN to TR': -W2S * (100.0 * (100.0 / float(args.nDN))),
-    #     'TRS to TR': W2S * (10.0 * (100.0 / float(args.nDN))),
-    #     'TR to DN': W2S * (0.5 * (100.0 / float(args.nDN))),
-    # }
-    #     ###___this works for 100-2500-100
     static_w = {
-        'AL to KC': W2S * 0.6 * (100.0/ float(args.nAL)),
+        'AL to KC': W2S * 1.0 * (100.0/ float(args.nAL)),
         'AL to LH': W2S * (0.001 * (100.0 / float(args.nAL))),
         ### inhibitory
         'LH to KC': -W2S * (0.02 * (20.0 / float(args.nLH))),
@@ -379,7 +354,7 @@ else:
         'KC to KC': -W2S * (0.01 * (2500.0 / float(args.nKC))),
 
         # this works for 100-2500-100
-        'KC to DN': W2S * ((0.4 / 1.2) * (2500.0/float(args.nKC))),
+        'KC to DN': W2S * ((0.8 / 1.2) * (2500.0/float(args.nKC))),
 
         'iKC to DN': -W2S * (1.0 * (2500.0 / float(args.nKC))),
         ### inhibitory
@@ -388,41 +363,14 @@ else:
 
         'NS to DN':  W2S * (0.001 * (100.0 / float(args.nDN))),
 
-        'DN to FB': W2S * (5.0 * (100.0 / float(args.nDN))),
-        'FB to DN': W2S * (10.0 * (100.0 / float(args.nDN))),
-        'TK to FB': W2S * (5.0 * (100.0 / float(args.nDN))),
+        'DN to FB': 3.0,
+        'FB to DN': 5.0,
+        'TK to FB': 3.0,
 
-        'DN to TR': -W2S * (100.0 * (100.0 / float(args.nDN))),
-        'TRS to TR': W2S * (10.0 * (100.0 / float(args.nDN))),
-        'TR to DN': W2S * (1.0 * (100.0 / float(args.nDN))),
+        'DN to TR': -10.0,
+        'TRS to TR': 5.0,
+        'TR to DN':  0.5,
     }
-    #     ###___this works for 1000-10000-100
-    # static_w = {
-    #     'AL to KC': W2S * 1.0 * (100.0/ float(args.nAL)),
-    #     # 'AL to LH': W2S * (5.0 * (100.0 / float(args.nAL))),
-    #     'AL to LH': W2S * (0.001 * (100.0 / float(args.nAL))),
-    #     ### inhibitory
-    #     'LH to KC': -W2S * (0.02 * (20.0 / float(args.nLH))),
-    #     ### inhibitory
-    #     'KC to KC': -W2S * (0.01 * (2500.0 / float(args.nKC))),
-    #
-    #     'KC to DN': W2S * ((0.4 / 1.2) * (2500.0/float(args.nKC))),
-    #
-    #     'iKC to DN': -W2S * (1.0 * (2500.0 / float(args.nKC))),
-    #     ### inhibitory
-    #     'DN to DN': -W2S * (10.0 * (100.0 / float(args.nDN))),
-    #     'pair DN to DN': W2S * (0.1 * (100.0 / float(args.nDN))),
-    #
-    #     'NS to DN':  W2S * (0.001 * (100.0 / float(args.nDN))),
-    #
-    #     'DN to FB': W2S * (4. * (100.0 / float(args.nDN))),
-    #     'FB to DN': W2S * (10.0 * (100.0 / float(args.nDN))),
-    #     'TK to FB': W2S * (4. * (100.0 / float(args.nDN))),
-    #
-    #     'DN to TR': -W2S * (100.0 * (100.0 / float(args.nDN))),
-    #     'TRS to TR': W2S * (10.0 * (100.0 / float(args.nDN))),
-    #     'TR to DN': W2S * (0.5 * (100.0 / float(args.nDN))),
-    # }
 
 rand_w = {
     'AL to KC': static_w['AL to KC'],
@@ -658,7 +606,7 @@ for loop in np.arange(n_loops):
     # print(loop, tmp_w.shape)
     weights.append(tmp_w.flatten())
 
-post_horn = pynnx.get_weights(projections['AL to LH'])
+post_horn = []#pynnx.get_weights(projections['AL to LH'])
 secs_to_run = time.time() - t0
 
 mins_to_run = secs_to_run // 60
@@ -709,7 +657,8 @@ if record_all:
     sys.stdout.flush()
 
     dn_voltage = pynnx.get_record(populations['decision'], 'v')
-    kc_voltage = pynnx.get_record(populations['kenyon'], 'v')
+    # kc_voltage = pynnx.get_record(populations['kenyon'], 'v')
+    kc_voltage = [np.array([[0, 0]])]
 
     sys.stdout.write('Done!\tGetting voltages\n\n')
     sys.stdout.flush()

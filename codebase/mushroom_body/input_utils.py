@@ -226,7 +226,7 @@ def generate_tick_spikes(samples, sample_dt, start_dt, num_test_samples, delay):
 
     return ticks
 
-def add_noise_to_samples(input_vectors, samples, n_other_pattern, seed=1, regenerate=False):
+def add_noise_to_samples(input_vectors, samples, n_other_pattern, num_noisy_samples, seed=1, regenerate=False):
     np.random.seed(seed)
 
     num_samples = len(samples)
@@ -238,7 +238,8 @@ def add_noise_to_samples(input_vectors, samples, n_other_pattern, seed=1, regene
         return f['samples']
 
     noisy_samples = None
-    for idx_samp, samp in enumerate(samples):
+    for idx_samp in range(num_noisy_samples):
+        samp = samples[idx_samp]
         nsamp = samp.copy().reshape(1, -1)
         # print(nsamp.shape)
         whr = np.where(samp == 0)[0]
