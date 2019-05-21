@@ -173,8 +173,10 @@ neuron_params = {
 W2S = args.w2s
 if neuron_class == 'IF_curr_exp':
     ###___this works for 100-2500-100
-    W2S *= 0.6/ 0.0025
+    W2S = 0.6
+    # W2S = 0.5
     W2S = 0.4
+    # W2S = 0.3
     ###___this works for 100-1000-100
     # W2S *= 0.9/ 0.0025
     ###___this works for 49-500-49
@@ -346,7 +348,8 @@ if neuron_class == 'IF_cond_exp':
     }
 else:
     static_w = {
-        'AL to KC': W2S * 1.0 * (100.0/ float(args.nAL)),
+        # 'AL to KC': W2S * 1.0 * (100.0/ float(args.nAL)),
+        'AL to KC': W2S * 0.9 * (100.0/ float(args.nAL)),
         'AL to LH': W2S * (0.001 * (100.0 / float(args.nAL))),
         ### inhibitory
         'LH to KC': -W2S * (0.02 * (20.0 / float(args.nLH))),
@@ -354,7 +357,7 @@ else:
         'KC to KC': -W2S * (0.01 * (2500.0 / float(args.nKC))),
 
         # this works for 100-2500-100
-        'KC to DN': W2S * ((0.8 / 1.2) * (2500.0/float(args.nKC))),
+        'KC to DN': W2S * ((0.5 / 1.2) * (2500.0/float(args.nKC))),
 
         'iKC to DN': -W2S * (1.0 * (2500.0 / float(args.nKC))),
         ### inhibitory
@@ -382,7 +385,7 @@ rand_w = {
 w_max = (static_w['KC to DN'] * 1.0) * 1.2
 # w_max = 0.2
 # w_max = W2S*(0.5 * (2500.0/float(args.nKC)))
-w_min = -2. * w_max
+w_min = -3. * w_max
 # w_min = 0.0 * w_max
 print("\nw_min = {}\tw_max = {}\n".format(w_min, w_max))
 

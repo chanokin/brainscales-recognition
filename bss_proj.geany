@@ -27,12 +27,15 @@ long_line_behaviour=1
 long_line_column=72
 
 [files]
-current_page=1
+current_page=2
 FILE_NAME_0=12564;Python;0;EUTF-8;0;1;0;%2Ftmp%2Fhel%2Fwang%2Fusers%2Fs2ext_pineda%2Fcluster_home%2Fprojects%2Fbss-mbody%2Fbss-mbody.py;0;4
 FILE_NAME_1=7031;Python;0;EUTF-8;0;1;0;%2Ftmp%2Fhel%2Fwang%2Fusers%2Fs2ext_pineda%2Fcluster_home%2Fprojects%2Fbss-mbody%2Fspikevo%2Fpartitioning.py;0;4
+FILE_NAME_2=2274;Python;0;EUTF-8;0;1;0;%2Ftmp%2Fhel%2Fwang%2Fusers%2Fs2ext_pineda%2Fcluster_home%2Fprojects%2Fweek_evo_test%2Fnmpm1_single_neuron_new_ssa.py;0;4
+FILE_NAME_3=46;Sh;0;EUTF-8;0;1;0;%2Ftmp%2Fhel%2Fwang%2Fusers%2Fs2ext_pineda%2Fcluster_home%2Fprojects%2Fbss-mbody%2Frun_mbody.sh;0;4
+FILE_NAME_4=3772;Python;0;EUTF-8;0;1;0;%2Ftmp%2Fhel%2Fwang%2Fusers%2Fs2ext_pineda%2Fcluster_home%2Fprojects%2Fweek_evo_test%2Fthree_layered.py;0;4
 
 [VTE]
-last_dir=/home/chanokin/Spinnaker/pyglet_spinnviz
+last_dir=/home/gp283
 
 [prjorg]
 source_patterns=*.c;*.C;*.cpp;*.cxx;*.c++;*.cc;*.m;
