@@ -52,7 +52,7 @@ num_neurons = num_dt
 
 pynnx = PyNNAL(backend)
 pynnx._sim.setup(timestep=timestep, min_delay=timestep,
-                 extra_params={'use_cpu': True})
+                 backend='SingleThreadedCPU')
 
 pprojs = {}
 for delay in delays:

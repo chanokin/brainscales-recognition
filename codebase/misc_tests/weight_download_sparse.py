@@ -40,7 +40,7 @@ timestep = 1.
 
 pynnx = PyNNAL(backend)
 pynnx._sim.setup(timestep=timestep, min_delay=timestep,
-                 # backend='SingleThreadedCPU'
+                 backend='SingleThreadedCPU'
                  )
 
 
@@ -74,9 +74,10 @@ stdp = {
     }
 }
 
-w = [[i, j, 1 + i*n_post + j, 1] for i in range(n_pre) for j in range(n_post)]
+# np.random.seed(1)
+w = [[i, j, 1 + i*n_post + j, 1] for i in range(n_pre) for j in range(n_post) if np.random.uniform(0., 1.) <= 0.5]
 # print(w)
-w_in = np.empty((n_pre, n_post))
+w_in = np.ones((n_pre, n_post)) * np.nan
 for r, c, v, d in w:
     w_in[r, c] = v
 
@@ -92,9 +93,17 @@ pynnx.end()
 
 print(w_out)
 
+sum_abs_diff = 0.0
+for r in range(n_pre):
+    for c in range(n_post):
+        if np.isnan(w_in[r, c]):
+            w_in[r, c] = 1e10
+        if np.isnan(w_out[r, c]):
+            w_out[r, c] = 1e10
 
+        sum_abs_diff += np.abs(w_in[r, c] - w_out[r, c])
 # print((w_in - w_out))
-print("sum of abs diff", np.sum(np.abs(w_in - w_out)))
+print("sum of abs diff", sum_abs_diff)
 # print(w_in.flatten())
 print(np.where(w_in == 6.))
 print(np.where(w_in == 6.)[0]*n_post + np.where(w_in == 6.)[1] )

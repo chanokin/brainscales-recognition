@@ -26,8 +26,7 @@ n_neurons = 7
 run_time = 50
 timestep = 0.1
 
-sim.setup(timestep=timestep, min_delay=timestep,
-                 extra_params={'use_cpu': True})
+sim.setup(timestep=timestep, min_delay=timestep,backend='SingleThreadedCPU')
 
 spike_ts = np.unique(np.random.randint(10, 20, size=(1, 10)))
 spike_times = [spike_ts if np.random.uniform() <= 1.0 else [] for _ in range(n_neurons)]

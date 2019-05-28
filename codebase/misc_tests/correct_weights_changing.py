@@ -45,7 +45,8 @@ ts_to_ms = 1./ms_to_ts
 spike_t = 10
 
 sim.setup(timestep=timestep, min_delay=timestep,
-                 extra_params={'use_cpu': True})
+          backend='SingleThreadedCPU'
+          )
 
 
 pre = sim.Population(n_pre, sim.SpikeSourceArray(spike_times=pre_times), label='Pre')
