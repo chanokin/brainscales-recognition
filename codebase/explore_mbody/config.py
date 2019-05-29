@@ -28,11 +28,12 @@ prob_kenyon_to_decision = 0.2 #how many weights will be high
 inactive_k2d_scale = 0.1 #multiply high by this to get low weights
 
 ### Neuron types
+neuron_class = 'IF_curr_exp'
 neuron_types = {
     'antenna': 'SpikeSourceArray',
-    'kenyon': 'IF_cond_exp',
-    'horn': 'IF_cond_exp',
-    'decision': 'IF_cond_exp',
+    'kenyon': neuron_class,
+    'horn': neuron_class,
+    'decision': neuron_class,
 }
 
 ### Population sizes

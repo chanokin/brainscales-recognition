@@ -3,6 +3,11 @@ from __future__ import (print_function,
                         division)
 from future.builtins import str, open, range, dict
 import numpy as np
+import os
+import sys
+import glob
+
+HEIGHT, WIDTH = 0, 1
 
 def generate_input_vectors(num_vectors, dimension, on_probability, seed=1):
     n_active = int(on_probability*dimension)
@@ -104,3 +109,163 @@ def output_connection_list(kenyon_size, decision_size, prob_active,
     np.random.seed()
 
     return matrix
+
+def load_spike_file(dataset, digit, index):
+    if dataset not in ['train', 't10k']:
+        dataset = 'train'
+
+    base_dir = "/home/gp283/brainscales-recognition/"\
+               "codebase/NE15/mnist-db/spikes/"
+
+    return sorted(glob.glob(
+            os.path.join(base_dir, dataset, str(digit), '*.npz')))[index]
+
+
+def to_post(v, p, s, k):
+    return ((v - k + 2 * p) // s) + 1
+
+
+def pre_indices_per_region(pre_shape, pad, stride, kernel_shape):
+    hk = np.array(kernel_shape) // 2
+
+    pres = {}
+    for _r in range(pad, pre_shape[HEIGHT], stride):
+        post_r = to_post(_r, pad, stride, np.array(kernel_shape[HEIGHT])) - 1
+        rdict = pres.get(post_r, {})
+        for _c in range(pad, pre_shape[WIDTH], stride):
+            post_c = to_post(_c, pad, stride, np.array(kernel_shape[WIDTH])) - 1
+            clist = rdict.get(post_c, [])
+
+            for k_r in range(-hk[HEIGHT], hk[HEIGHT] + 1, 1):
+                for k_c in range(-hk[WIDTH], hk[WIDTH] + 1, 1):
+                    pre_r, pre_c = _r + k_r, _c + k_c
+                    outbound = pre_r < 0 or pre_c < 0 or \
+                                pre_r >= pre_shape[HEIGHT] or \
+                                pre_c >= pre_shape[WIDTH]
+
+                    pre = None if outbound else (pre_r * pre_shape[WIDTH] + pre_c)
+                    clist.append(pre)
+            rdict[post_c] = clist
+        pres[post_r] = rdict
+
+    return pres
+
+
+def kernel_pre_post_pairs(pre_shape, pad, stride, kernel_shape):
+    post_shape = to_post(np.array(pre_shape), pad, stride, np.array(kernel_shape))
+    hk = np.array(kernel_shape) // 2
+
+    pairs = []
+    for _r in range(pad, pre_shape[HEIGHT], stride):
+        for _c in range(pad, pre_shape[WIDTH], stride):
+            post_r = to_post(_r, pad, stride, np.array(kernel_shape[HEIGHT])) - 1
+            post_c = to_post(_c, pad, stride, np.array(kernel_shape[WIDTH])) - 1
+            for k_r in range(-hk[HEIGHT], hk[HEIGHT] + 1, 1):
+                for k_c in range(-hk[WIDTH], hk[WIDTH] + 1, 1):
+                    pre_r, pre_c = _r + k_r, _c + k_c
+                    if pre_r < 0 or pre_c < 0 or \
+                            pre_r >= pre_shape[HEIGHT] or \
+                            pre_c >= pre_shape[WIDTH]:
+                        continue
+
+                    pre_id = pre_r * pre_shape[WIDTH] + pre_c
+                    post_id = post_r * post_shape[WIDTH] + post_c
+                    pairs.append([pre_id, post_id])
+
+    return np.array(pairs)
+
+def prob_conn_from_list(pre_post_pairs, n_per_post, probability, weight, delay, weight_off_mult=None):
+    posts = np.unique(pre_post_pairs[:, 1])
+    conns = []
+    for post_base in posts:
+        pres = pre_post_pairs[np.where(pre_post_pairs[:, 1] == post_base)]
+        for i in range(n_per_post):
+            for pre in pres:
+                if np.random.uniform <= probability:
+                    post = post_base * n_per_post + i
+                    conns.append([pre, post, weight, delay])
+                else:
+                    if weight_off_mult is None:
+                        continue
+
+                    post = post_base * n_per_post + i
+                    conns.append([pre, post, weight*weight_off_mult, delay])
+
+    return np.array(conns)
+
+def gabor_kernel(params):
+    # adapted from
+    # http://vision.psych.umn.edu/users/kersten/kersten-lab/courses/Psy5036W2017/Lectures/17_PythonForVision/Demos/html/2b.Gabor.html
+    shape = np.array(params['shape'])
+    omega = params['omega']  # amplitude1 (~inverse)
+    theta = params['theta']  # rotation angle
+    k = params.get('k', np.pi / 2.0)  # amplitude2
+    sinusoid = params.get('sinusoid func', np.cos)
+    normalize = params.get('normalize', True)
+
+    r = np.floor(shape / 2.0)
+
+    # create coordinates
+    [x, y] = np.meshgrid(range(-r[0], r[0] + 1), range(-r[1], r[1] + 1))
+    # rotate coords
+    ct, st = np.cos(theta), np.sin(theta)
+    x1 = x * ct + y * st
+    y1 = x * (-st) + y * ct
+
+    gauss = (omega ** 2 / (4.0 * np.pi * k ** 2)) * np.exp(
+        (-omega ** 2 * (4.0 * x1 ** 2 + y1 ** 2)) * (1.0 / (8.0 * k ** 2)))
+    sinus = sinusoid(omega * x1) * np.exp(k ** 2 / 2.0)
+    k = gauss * sinus
+
+    if normalize:
+        k -= k.mean()
+        k /= np.sqrt(np.sum(k ** 2))
+
+    return k
+
+
+def gabor_connect_templates(pre_indices, gabor_params, layer, delay=1.0):
+    omegas = gabor_params['omega']
+    omegas = omegas if isinstance(omegas, list) else [omegas]
+
+    thetas = gabor_params['theta']
+    thetas = thetas if isinstance(thetas, list) else [thetas]
+
+    k = gabor_params['k']
+    shape = gabor_params['shape']
+
+    kernels = [gabor_kernel({'shape': shape, 'omega': o, 'theta': t})
+               for o in omegas for t in thetas]
+
+    conns = []
+    for pre_i, pre in enumerate(pre_indices):
+        if pre is None:
+            continue
+
+        r = pre_i // shape[1]
+        c = pre_i % shape[1]
+        for k in kernels:
+            conns.append([pre, np.nan, k[r, c], delay])
+
+    return kernels, conns
+
+def split_spikes(spikes, n_types):
+    spikes_out = [[] for _ in range(n_types)]
+    n_per_type = spikes.shape[0] // n_types
+    for type_idx in range(n_types):
+        for nidx in range(n_per_type):
+            spikes_out[type_idx].append(spikes[type_idx * n_per_type + nidx])
+    return spikes_out
+
+
+def reduce_spike_place(spikes, shape, divs):
+    fshape = [shape[0]//divs[0], shape[1]//divs[1]]
+    fspikes = [[] for _ in range(fshape[0]*fshape[0])]
+    for pre, times in spikes:
+        r = (pre // shape[1]) // divs[0]
+        c = (pre % shape[1]) // divs[1]
+        fpre = r * fshape[1] + c
+        fspikes[fpre] += times
+        fspikes[fpre][:] = sorted(fspikes[fpre])
+
+    return fshape, fspikes
