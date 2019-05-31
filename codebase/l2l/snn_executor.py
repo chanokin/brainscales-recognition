@@ -5,17 +5,8 @@ import numpy as np
 
 import pynn_genn as sim
 from pprint import pprint
-
 from multiprocessing import Process, Queue
-
-class Decoder(object):
-    def __init__(self, name, params):
-        self.decode(params)
-        self.name = name
-        print("In Decoder init, %s"%name)
-
-    def decode(self, params):
-        pprint(params)
+from snn_decoder import Decoder
 
 class Executor(object):
     def __init__(self):
@@ -29,14 +20,17 @@ class Executor(object):
                 print("failed to join process %s"%(p))
     def run(self, label, network_description):
         def f(queue, description):
-            x = 123
             dec = Decoder(label, description)
-            queue.put([x])
+            data = dec.run_pynn()
+            queue.put(data)
 
         q = Queue()
         p = Process(target=f, args=(q, network_description))
         p.start()
         data = q.get()
+        pprint(label)
+        pprint(data)
         self._processes[label] = p
 
         return data
+

@@ -31,7 +31,7 @@ ATTR_RANGES = {
     'out_prob': OUTPUT_PROB_RANGE,
 }
 
-
+TIMESTEP = 0.1
 
 
 

@@ -11,19 +11,6 @@ from snn_executor import Executor
 
 
 def eval_one_min(trajectory):
-    
-    populations = {
-    }
-
-    # 'conn':, 'weights':, 'delays':, 'conn_params',
-    projections = {
-    }
-
-    description = {
-        'populations': populations,
-        'projections': projections,
-    }
-    
     individual = trajectory.parameters.ind_idx
     generation = trajectory.parameters.generation
     name = 'gen{}_ind{}'.format(generation, individual)
