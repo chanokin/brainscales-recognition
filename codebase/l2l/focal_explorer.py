@@ -1,8 +1,3 @@
-from __future__ import (print_function,
-                        unicode_literals,
-                        division)
-from future.builtins import str, open, range, dict
-
 from pypet import Environment, cartesian_product
 
 import random
@@ -11,10 +6,9 @@ from deap import creator
 from deap import tools
 from pprint import pprint
 import numpy as np
-# from config import *
+from config import *
+from snn_executor import Executor
 
-SIM_NAME = 'genn'
-WEIGHT_RANGE = [0.001, 0.1, 0.01]
 
 def eval_one_min(trajectory):
     
@@ -33,22 +27,16 @@ def eval_one_min(trajectory):
     individual = trajectory.parameters.ind_idx
     generation = trajectory.parameters.generation
     name = 'gen{}_ind{}'.format(generation, individual)
+    net_params = {attr: trajectory.individual[i] for attr, i in ATTR2IDX.items()}
+    # print("\n\n%s"%(name))
+    # pprint(net_params)
 
-    per_sim_params = {}
-    if SIM_NAME == 'genn':
-        per_sim_params['model_name'] = name
-        # per_sim_params['use_cpu'] = True
-        # per_sim_params['MPI_ENABLE'] = True
-        # per_sim_params['num_processors'] = 2
-    print("\n\n%s"%(name))
-    for p in trajectory.derived_parameters:#.simulation:
-        print(p)
-
-    data = name
+    ex = Executor()
+    data = ex.run(name, net_params)
 
     trajectory.f_add_result('activity.$', data=data)
 
-    return (1,)
+    return (sum(trajectory.individual),)
 
 
 
@@ -56,7 +44,6 @@ def eval_one_min(trajectory):
 ######################################################################
 ######################################################################
 ######################################################################
-
 
 def main():
     ### setup an experimental environment
@@ -88,7 +75,7 @@ def main():
     traj = env.trajectory
 
     ### genetic algorithm parameters
-    traj.f_add_parameter('popsize', 5, comment='Population size')
+    traj.f_add_parameter('popsize', 3, comment='Population size')
     traj.f_add_parameter('CXPB', 0.5, comment='Crossover term')
     traj.f_add_parameter('MUTPB', 0.2, comment='Mutation probability')
     traj.f_add_parameter('NGEN', 2, comment='Number of generations')
@@ -125,13 +112,17 @@ def main():
 
     toolbox = base.Toolbox()
     # Attribute generator
-    toolbox.register("weight", np.random.uniform,
-                     WEIGHT_RANGE[0], WEIGHT_RANGE[1])
-    toolbox.register("pi_divs", np.random.randint,
-                     2, 6)
+
+    attr_list = [None for _ in ATTR2IDX]
+    for attr in ATTR2IDX:
+        r = ATTR_RANGES[attr]
+        f = np.random.uniform if np.issubdtype(type(r[0]), np.floating) else randint_float
+        toolbox.register(attr, f, r[0], r[1])
+        attr_list[ATTR2IDX[attr]] = getattr(toolbox, attr)
+
     # Structure initializers
     toolbox.register("individual", tools.initCycle, creator.Individual,
-                     (toolbox.weight, toolbox.pi_divs), n=1)
+                     attr_list, n=1)
     toolbox.register("population", tools.initRepeat, list, toolbox.individual)
 
     # Operator registering
@@ -164,11 +155,12 @@ def main():
         # This is for only having the cartesian product
         # between ``generation x (ind_idx AND individual)``, so that every individual has just one
         # unique index within a generation.
-        indiv = [list(x) for x in eval_pop]
+        # prod = cartesian_product({'generation': [g],
+        #                           'ind_idx': range(len(eval_pop))})
         prod = cartesian_product({'generation': [g],
                                   'ind_idx': range(len(eval_pop)),
-                                  'individual': indiv},
-                                 [('ind_idx', 'individual'), 'generation'])
+                                  'individual':[list(x) for x in eval_pop]},
+                                  [('ind_idx', 'individual'),'generation'])
         traj.f_expand(prod)
 
         fitnesses_results = toolbox.map(toolbox.evaluate)  # evaluate using our fitness function
