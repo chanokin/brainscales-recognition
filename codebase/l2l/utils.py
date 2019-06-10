@@ -275,15 +275,19 @@ def split_spikes(spikes, n_types):
 
 
 def div_index(orig_index, orig_shape, divs):
-    r = (orig_index // orig_shape[1]) // divs[0]
-    c = (orig_index % orig_shape[1]) // divs[1]
-    return r * (orig_shape[1] // divs[1]) + c
+    w = orig_shape[1] // divs[1]  + int(orig_shape[1]%divs[1] > 0)
+    r = (orig_index // orig_shape[1])
+    r = int(r / float(divs[0]))
+    c = (orig_index % orig_shape[1])
+    c = int(c / float(divs[1]))
+    return r * w + c
 
 
 def reduce_spike_place(spikes, shape, divs):
-    fshape = [shape[0]//divs[0], shape[1]//divs[1]]
+    fshape = [shape[0]//divs[0] + int(shape[0]%divs[0] > 0),
+              shape[1]//divs[1] + int(shape[1]%divs[1] > 0)]
     fspikes = [[] for _ in range(fshape[0]*fshape[1])]
-    for pre, times in spikes:
+    for pre, times in enumerate(spikes):
         fpre = div_index(pre, shape, divs)
         fspikes[fpre] += times
         fspikes[fpre][:] = np.unique(sorted(fspikes[fpre]))
@@ -308,6 +312,13 @@ def scaled_pre_templates(pre_shape, pad, stride, kernel_shape, divs):
                     dr[c] = list(_scaled)
                 d[r] = dr
 
-            pre_indices.append(d)
+            pre_indices.append(d) 
 
     return pre_indices
+
+def append_spikes(source, added, dt):
+    for i, times in enumerate(added):
+        if len(times) == 0:
+            continue
+        source[i][:] = sorted(source[i] + (np.array(times) + dt).tolist())
+    return source

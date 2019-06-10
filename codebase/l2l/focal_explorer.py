@@ -14,10 +14,24 @@ def eval_one_min(trajectory):
     individual = trajectory.parameters.ind_idx
     generation = trajectory.parameters.generation
     name = 'gen{}_ind{}'.format(generation, individual)
-    net_params = {attr: trajectory.individual[i] for attr, i in ATTR2IDX.items()}
+    ind_params = {attr: trajectory.individual[i] for attr, i in ATTR2IDX.items()}
     # print("\n\n%s"%(name))
     # pprint(net_params)
-
+    sim = trajectory.parameters.simulation
+    sim_params = {
+        'duration': sim.duration,
+        'sample_dt': sim.sample_dt,
+        'input_shape': sim.input_shape,
+        'input_divs': sim.input_divs,
+        'input_layers': sim.input_layers,
+        'num_classes': sim.num_classes,
+        'samples_per_class': sim.samples_per_class,
+        'spikes_path': sim.spikes_path,
+    }
+    net_params = {
+        'sim': sim_params,
+        'ind': ind_params
+    }
     ex = Executor()
     data = ex.run(name, net_params)
 
@@ -62,10 +76,10 @@ def main():
     traj = env.trajectory
 
     ### genetic algorithm parameters
-    traj.f_add_parameter('popsize', 3, comment='Population size')
+    traj.f_add_parameter('popsize', 1, comment='Population size')
     traj.f_add_parameter('CXPB', 0.5, comment='Crossover term')
     traj.f_add_parameter('MUTPB', 0.2, comment='Mutation probability')
-    traj.f_add_parameter('NGEN', 2, comment='Number of generations')
+    traj.f_add_parameter('NGEN', 1, comment='Number of generations')
 
     traj.f_add_parameter('generation', 0, comment='Current generation')
     traj.f_add_parameter('ind_idx', 0, comment='Index of individual')
@@ -80,7 +94,14 @@ def main():
     traj.f_add_parameter('seed', 42, comment='Seed for RNG')
     
     traj.f_add_parameter('simulation.duration', 100.0)#ms
-    
+    traj.f_add_parameter('simulation.sample_dt', 50.0)#ms
+    traj.f_add_parameter('simulation.input_shape', (28, 28))#rows, cols
+    traj.f_add_parameter('simulation.input_divs', (3, 5))#rows, cols
+    traj.f_add_parameter('simulation.input_layers', 4)
+    traj.f_add_parameter('simulation.num_classes', 10)
+    traj.f_add_parameter('simulation.samples_per_class', 10)
+    traj.f_add_parameter('simulation.spikes_path',
+        '/home/gp283/brainscales-recognition/codebase/NE15/mnist-db/spikes/train')
     # Placeholders for individuals and results that are about to be explored
     traj.f_add_derived_parameter('individual', [0 for x in range(traj.ind_len)],
                                  'An indivudal of the population')
