@@ -12,7 +12,7 @@ pip install https://github.com/IGITUGraz/sdict/archive/master.zip
 ### requires libyaml-dev
 
 ### finally, install pypet
-git clone https://github.com/IGITUGraz/L2L $L2L_DIR
+git clone https://github.com/chanokin/L2L $L2L_DIR
 
 cd $L2L_DIR
 python setup.py develop

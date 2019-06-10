@@ -189,6 +189,7 @@ def kernel_pre_post_pairs(pre_shape, pad, stride, kernel_shape):
 
     return np.array(pairs)
 
+
 def prob_conn_from_list(pre_post_pairs, n_per_post, probability, weight, delay, weight_off_mult=None):
     posts = np.unique(pre_post_pairs[:, 1])
     conns = []
@@ -263,6 +264,7 @@ def gabor_connect_templates(pre_indices, gabor_params, layer, delay=1.0):
 
     return kernels, conns
 
+
 def split_spikes(spikes, n_types):
     spikes_out = [[] for _ in range(n_types)]
     n_per_type = spikes.shape[0] // n_types
@@ -272,14 +274,40 @@ def split_spikes(spikes, n_types):
     return spikes_out
 
 
+def div_index(orig_index, orig_shape, divs):
+    r = (orig_index // orig_shape[1]) // divs[0]
+    c = (orig_index % orig_shape[1]) // divs[1]
+    return r * (orig_shape[1] // divs[1]) + c
+
+
 def reduce_spike_place(spikes, shape, divs):
     fshape = [shape[0]//divs[0], shape[1]//divs[1]]
-    fspikes = [[] for _ in range(fshape[0]*fshape[0])]
+    fspikes = [[] for _ in range(fshape[0]*fshape[1])]
     for pre, times in spikes:
-        r = (pre // shape[1]) // divs[0]
-        c = (pre % shape[1]) // divs[1]
-        fpre = r * fshape[1] + c
+        fpre = div_index(pre, shape, divs)
         fspikes[fpre] += times
-        fspikes[fpre][:] = sorted(fspikes[fpre])
+        fspikes[fpre][:] = np.unique(sorted(fspikes[fpre]))
 
     return fshape, fspikes
+
+
+def scaled_pre_templates(pre_shape, pad, stride, kernel_shape, divs):
+    pre_indices = []
+    for scale_divs in divs:
+        _indices = pre_indices_per_region(pre_shape, pad, stride, kernel_shape)
+        if scale_divs[0] == 1 and scale_divs[1] == 1:
+            pre_indices.append(_indices)
+        else:
+            d = {}
+            for r in _indices:
+                dr = d.get(r, {})
+                for c in _indices[r]:
+                    _scaled = set(dr.get(c, list()))
+                    for pre in _indices[r][c]:
+                        _scaled.add(div_index(pre, pre_shape, scale_divs))
+                    dr[c] = list(_scaled)
+                d[r] = dr
+
+            pre_indices.append(d)
+
+    return pre_indices
