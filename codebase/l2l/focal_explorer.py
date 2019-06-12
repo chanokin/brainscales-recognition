@@ -9,6 +9,7 @@ import numpy as np
 from config import *
 from snn_executor import Executor
 
+results_path = os.path.join(os.getcwd(), 'run_results')
 
 def eval_one_min(trajectory):
     individual = trajectory.parameters.ind_idx
@@ -17,25 +18,21 @@ def eval_one_min(trajectory):
     ind_params = {attr: trajectory.individual[i] for attr, i in ATTR2IDX.items()}
     # print("\n\n%s"%(name))
     # pprint(net_params)
-    sim = trajectory.parameters.simulation
-    sim_params = {
-        'duration': sim.duration,
-        'sample_dt': sim.sample_dt,
-        'input_shape': sim.input_shape,
-        'input_divs': sim.input_divs,
-        'input_layers': sim.input_layers,
-        'num_classes': sim.num_classes,
-        'samples_per_class': sim.samples_per_class,
-        'spikes_path': sim.spikes_path,
-    }
+
+    sim_params = {k: trajectory.parameters.simulation._leaves[k]._data
+                        for k in trajectory.parameters.simulation._leaves}
+
     net_params = {
         'sim': sim_params,
         'ind': ind_params
     }
     ex = Executor()
     data = ex.run(name, net_params)
+    print(data)
 
-    trajectory.f_add_result('activity.$', data=data)
+    os.makedirs(results_path, exist_ok=True)
+    fname = 'data_{}.npz'.format(name)
+    np.savez_compressed(os.path.join(results_path, fname), **data)
 
     return (sum(trajectory.individual),)
 
@@ -48,9 +45,7 @@ def eval_one_min(trajectory):
 
 def main():
     ### setup an experimental environment
-    multiproc = True
-    n_procs = 1
-    env = Environment(trajectory='WeightToSpike',
+    env = Environment(trajectory='FocalExplorer',
                       comment='Experiment to see which is the minimum weight'
                             'is required by a neuron to spike',
                       add_time=False, # We don't want to add the current time to the name,
@@ -93,21 +88,27 @@ def main():
 
     traj.f_add_parameter('seed', 42, comment='Seed for RNG')
     
-    traj.f_add_parameter('simulation.duration', 100.0)#ms
-    traj.f_add_parameter('simulation.sample_dt', 50.0)#ms
+    traj.f_add_parameter('simulation.duration', N_CLASSES*N_SAMPLES*SAMPLE_DT)#ms
+    traj.f_add_parameter('simulation.sample_dt', SAMPLE_DT)#ms
     traj.f_add_parameter('simulation.input_shape', (28, 28))#rows, cols
     traj.f_add_parameter('simulation.input_divs', (3, 5))#rows, cols
-    traj.f_add_parameter('simulation.input_layers', 4)
-    traj.f_add_parameter('simulation.num_classes', 10)
-    traj.f_add_parameter('simulation.samples_per_class', 10)
+    traj.f_add_parameter('simulation.input_layers', N_INPUT_LAYERS)
+    traj.f_add_parameter('simulation.num_classes', N_CLASSES)
+    traj.f_add_parameter('simulation.samples_per_class', N_SAMPLES)
+    traj.f_add_parameter('simulation.kernel_width', KERNEL_W)
+    traj.f_add_parameter('simulation.kernel_pad', PAD)
+    traj.f_add_parameter('simulation.output_size', OUTPUT_SIZE)
+
+
+
     traj.f_add_parameter('simulation.spikes_path',
         '/home/gp283/brainscales-recognition/codebase/NE15/mnist-db/spikes/train')
     # Placeholders for individuals and results that are about to be explored
     traj.f_add_derived_parameter('individual', [0 for x in range(traj.ind_len)],
                                  'An indivudal of the population')
     traj.f_add_result('fitnesses', [], comment='Fitnesses of all individuals')
-    
-    ### setup DEAP minimization 
+
+    ### setup DEAP minimization
     ### Name of our fitness function, base class from which to inherit,
     ### weights are the importance of each element in the fitness function
     ### return values; -1.0 because it's a minimization problem
@@ -125,7 +126,11 @@ def main():
     for attr in ATTR2IDX:
         r = ATTR_RANGES[attr]
         f = np.random.uniform if np.issubdtype(type(r[0]), np.floating) else randint_float
-        toolbox.register(attr, f, r[0], r[1])
+        if len(r) == 2:
+            toolbox.register(attr, f, r[0], r[1])
+        elif len(r) == 3:
+            toolbox.register(attr, f, r[0], r[1], r[2])
+
         attr_list[ATTR2IDX[attr]] = getattr(toolbox, attr)
 
     # Structure initializers
@@ -169,6 +174,7 @@ def main():
                                   'ind_idx': range(len(eval_pop)),
                                   'individual':[list(x) for x in eval_pop]},
                                   [('ind_idx', 'individual'),'generation'])
+        # pprint(prod)
         traj.f_expand(prod)
 
         fitnesses_results = toolbox.map(toolbox.evaluate)  # evaluate using our fitness function
