@@ -1,7 +1,7 @@
 from __future__ import (print_function,
                         unicode_literals,
                         division)
-from future.builtins import str, open, range, dict
+# from future.builtins import str, open, range, dict
 
 import numpy as np
 import matplotlib.pyplot as plt

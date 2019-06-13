@@ -16,8 +16,6 @@ def eval_one_min(trajectory):
     generation = trajectory.parameters.generation
     name = 'gen{}_ind{}'.format(generation, individual)
     ind_params = {attr: trajectory.individual[i] for attr, i in ATTR2IDX.items()}
-    # print("\n\n%s"%(name))
-    # pprint(net_params)
 
     sim_params = {k: trajectory.parameters.simulation._leaves[k]._data
                         for k in trajectory.parameters.simulation._leaves}
@@ -26,6 +24,10 @@ def eval_one_min(trajectory):
         'sim': sim_params,
         'ind': ind_params
     }
+
+    # print("\n\n%s"%(name))
+    # pprint(net_params)
+
     ex = Executor()
     data = ex.run(name, net_params)
     print(data)

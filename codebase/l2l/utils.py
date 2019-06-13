@@ -3,13 +3,19 @@ import os
 # import sys
 import glob
 
-HEIGHT, WIDTH = 0, 1
+HEIGHT, WIDTH = range(2)
+ROWS, COLS = range(2)
+PRE, POST, WEIGHT, DELAY = range(4)
 
 def to_post(v, p, s, k):
     return ((v - k + 2 * p) // s) + 1
 
-def randint_float(vmin, vmax):
-    return np.float(np.random.randint(vmin, vmax))
+def randint_float(vmin, vmax, div=None):
+    if div is None:
+        return np.float(np.random.randint(vmin, vmax))
+    else:
+        return np.float(np.floor(np.floor(np.random.randint(vmin, vmax)/float(div))*div))
+
 
 def compute_num_regions(shape, stride, padding, kernel_shape):
     ins = np.array(shape)
@@ -17,7 +23,15 @@ def compute_num_regions(shape, stride, padding, kernel_shape):
     p = np.array(padding)
     ks = np.array(kernel_shape)
     post_shape = to_post(ins, p, s, ks)
-    return post_shape[0] * post_shape[1]
+    return post_shape[WIDTH] * post_shape[HEIGHT]
+
+def compute_region_shape(shape, stride, padding, kernel_shape):
+    ins = np.array(shape)
+    s = np.array(stride)
+    p = np.array(padding)
+    ks = np.array(kernel_shape)
+    post_shape = to_post(ins, p, s, ks)
+    return (post_shape[HEIGHT], post_shape[WIDTH])
 
 def n_neurons_per_region(num_in_layers, num_pi_divs):
     return num_in_layers * num_pi_divs
@@ -142,13 +156,12 @@ def load_spike_file(dataset, digit, index):
 
 def pre_indices_per_region(pre_shape, pad, stride, kernel_shape):
     hk = np.array(kernel_shape) // 2
-
     pres = {}
-    for _r in range(pad, pre_shape[HEIGHT], stride):
-        post_r = to_post(_r, pad, stride, np.array(kernel_shape[HEIGHT])) - 1
+    for _r in range(pad[HEIGHT], pre_shape[HEIGHT]+pad[HEIGHT], stride[HEIGHT]):
+        post_r = int(to_post(_r, pad[HEIGHT], stride[HEIGHT], np.array(kernel_shape[HEIGHT])) - 1)
         rdict = pres.get(post_r, {})
-        for _c in range(pad, pre_shape[WIDTH], stride):
-            post_c = to_post(_c, pad, stride, np.array(kernel_shape[WIDTH])) - 1
+        for _c in range(pad[WIDTH], pre_shape[WIDTH]+pad[WIDTH], stride[WIDTH]):
+            post_c = int(to_post(_c, pad[WIDTH], stride[WIDTH], np.array(kernel_shape[WIDTH])) - 1)
             clist = rdict.get(post_c, [])
 
             for k_r in range(-hk[HEIGHT], hk[HEIGHT] + 1, 1):
@@ -219,7 +232,7 @@ def gabor_kernel(params):
     sinusoid = params.get('sinusoid func', np.cos)
     normalize = params.get('normalize', True)
 
-    r = np.floor(shape / 2.0)
+    r = np.floor(shape / 2.0).astype('int')
 
     # create coordinates
     [x, y] = np.meshgrid(range(-r[0], r[0] + 1), range(-r[1], r[1] + 1))
@@ -240,7 +253,7 @@ def gabor_kernel(params):
     return k
 
 
-def gabor_connect_templates(pre_indices, gabor_params, layer, delay=1.0):
+def gabor_connect_list(pre_indices, gabor_params, delay=1.0, w_mult=1.0):
     omegas = gabor_params['omega']
     omegas = omegas if isinstance(omegas, list) else [omegas]
 
@@ -250,19 +263,32 @@ def gabor_connect_templates(pre_indices, gabor_params, layer, delay=1.0):
     shape = gabor_params['shape']
 
     kernels = [gabor_kernel({'shape': shape, 'omega': o, 'theta': t})
-               for o in omegas for t in thetas]
+                                        for o in omegas for t in thetas]
 
     conns = []
-    for pre_i, pre in enumerate(pre_indices):
-        if pre is None:
-            continue
+    for ki, k in enumerate(kernels):
+        for pre_i, pre in enumerate(pre_indices):
+            if pre is None:
+                continue
 
-        r = pre_i // shape[1]
-        c = pre_i % shape[1]
-        for k in kernels:
-            conns.append([pre, np.nan, k[r, c], delay])
+            r = pre_i // shape[WIDTH]
+            c = pre_i % shape[WIDTH]
+            conns.append([pre, ki, k[r, c] * w_mult, delay])
 
     return kernels, conns
+
+
+def split_to_inh_exc(conn_list, epsilon=float(1e-6)):
+    e = []
+    i = []
+    for v in conn_list:
+        if v[WEIGHT] > epsilon:
+            e.append(v)
+        elif v[WEIGHT] < epsilon:
+            i.append(v)
+
+    return i, e
+
 
 
 def split_spikes(spikes, n_types):

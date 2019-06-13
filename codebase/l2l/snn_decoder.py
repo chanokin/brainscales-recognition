@@ -68,13 +68,13 @@ class Decoder(object):
 
         projs = {}
         logging.info("\tProjections: Input to Gabor")
-        projs['in to gabor'] = self.in_to_gabor(params)
+        projs['input to gabor'] = self.in_to_gabor(params)
 
         logging.info("\tProjections: Gabor to Mushroom")
         projs['gabor to mushroom'] = self.gabor_to_mushroom(params)
 
         logging.info("\tProjections: Mushroom to Output")
-        projs['mushroom to out'] = self.mushroom_to_out(params)
+        projs['mushroom to output'] = self.mushroom_to_out(params)
 
         self._network['projections'] = projs
 
@@ -160,9 +160,9 @@ class Decoder(object):
             neuron_type = getattr(sim, gabor_class)
             for lyr in _shapes:
                 lrd = gs.get(lyr, {})
-                for row in np.arange(_shapes[lyr][0]).astype('int'):
+                for row in np.arange(_shapes[lyr][HEIGHT]).astype('int'):
                     lrc = lrd.get(row, {})
-                    for col in np.arange(_shapes[lyr][1]).astype('int'):
+                    for col in np.arange(_shapes[lyr][WIDTH]).astype('int'):
                         lrc[col] = sim.Population(ndivs, neuron_type, gabor_params,
                                     label='gabor - {} ({}, {})'.format(lyr, row, col))
                         if 'gabor' in record_spikes:
@@ -216,7 +216,7 @@ class Decoder(object):
 
     def in_to_gabor(self, params=None):
         try:
-            return self.projections['in to gabor']
+            return self._network['projections']['input to gabor']
         except:
 
             stride = (int(params['ind']['stride']), int(params['ind']['stride']))
@@ -240,25 +240,27 @@ class Decoder(object):
                 lyrdict = projs.get(i, {})
                 pre_shape = self.in_shapes[i]
                 pre_indices = pre_indices_per_region(pre_shape, pad, stride, k_shape)
-                k, conns = gabor_connect_list(pre_indices, gabor_params, delay=1.0,
-                                              w_mult=gabor_weight[i])
-                ilist, elist = split_to_inh_exc(conns)
-                if len(elist) == 0:
-                    continue
-
-                icon, econ = sim.FromListConnector(ilist), sim.FromListConnector(elist)
                 pre = pres[i]
                 for r in posts[i]:
                     rowdict = lyrdict.get(r, {})
                     for c in posts[i][r]:
-                        ilabel = 'inh - {} to ({}, {})'.format(i, r, c)
-                        elabel = 'exc - {} to ({}, {})'.format(i, r, c)
+                        k, conns = gabor_connect_list(pre_indices[r][c], gabor_params, delay=1.0,
+                                                      w_mult=gabor_weight[i])
+                        ilist, elist = split_to_inh_exc(conns)
+                        if len(elist) == 0:
+                            continue
 
                         post = posts[i][r][c]
+                        econ = sim.FromListConnector(elist)
+                        elabel = 'exc - in {} to gabor {}-{}'.format(i, r, c)
                         rowdict[c] = {
-                            'inh': sim.Projection(pre, post, icon, label=ilabel),
                             'exc': sim.Projection(pre, post, econ, label=elabel),
                         }
+
+                        if len(ilist) > 0:
+                            icon = sim.FromListConnector(ilist)
+                            ilabel = 'inh - in {} to gabor {}-{}'.format(i, r, c)
+                            rowdict[c]['inh'] = sim.Projection(pre, post, icon, label=ilabel),
 
                     lyrdict[r] = rowdict
                 projs[i] = lyrdict
@@ -267,7 +269,7 @@ class Decoder(object):
 
     def gabor_to_mushroom(self, params):
         try:
-            return self.projections['gabor to mushroom']
+            return self._network['projections']['gabor to mushroom']
         except:
             post = self.mushroom_population()
             prob = params['ind']['exp_prob']
@@ -281,8 +283,8 @@ class Decoder(object):
                         pre = pres[lyr][r][c]
                         rdict[c] = sim.Projection(pre, post,
                                     sim.FixedProbabilityConnector(prob),
-                                    sim.StaticSynapse(weight=mushroom_weight)
-                                   )
+                                    sim.StaticSynapse(weight=mushroom_weight),
+                                   label='gabor {}{}{} to mushroom'.format(lyr, r, c))
                     lyrdict[r] = rdict
                 projs[lyr] = lyrdict
 
@@ -290,7 +292,7 @@ class Decoder(object):
 
     def mushroom_to_out(self, params):
         try:
-            return self.projections['mushroom to out']
+            return self._network['projections']['mushroom to output']
         except:
             pre = self.mushroom_population()
             post = self.output_population()
@@ -302,7 +304,8 @@ class Decoder(object):
             wdep = getattr(sim, weight_dep)(w_min_mult*max_w, w_max_mult*max_w)
             stdp = sim.STDPMechanism(timing_dependence=tdep, weight_dependence=wdep)
 
-            p = sim.Projection(pre, post, sim.FromListConnector(conn_list), stdp)
+            p = sim.Projection(pre, post, sim.FromListConnector(conn_list), stdp,
+                               label='mushroom to output')
             return p
 
     def _get_recorded(self, layer):
@@ -310,7 +313,8 @@ class Decoder(object):
         if layer == 'input':
             pops = self.input_populations()
             for i in pops:
-                data[i] = pops[i].get_data().segments[0]
+                data[i] = grab_data(pops[i])
+
         elif layer == 'gabor':
             _, pops = self.gabor_populations()
             for i in pops:
@@ -318,14 +322,13 @@ class Decoder(object):
                 for r in pops[i]:
                     rdict = idict.get(r, {})
                     for c in pops[i][r]:
-                        rdict[c] = pops[i][r][c].get_data().segments[0]
+                        rdict[c] = grab_data(pops[i][r][c])
                     idict[r] = rdict
                 data[i] = idict
         elif layer == 'mushroom':
-            pop = self.mushroom_population()
-            data[0] = pop.get_data().segments[0]
+            data[0] = grab_data(self.mushroom_population())
         elif layer == 'output':
-            data[0] = self.output_population().get_data().segments[0]
+            data[0] = grab_data(self.output_population())
 
         return data
 
@@ -343,10 +346,11 @@ class Decoder(object):
 
         weights = {}
         for proj in net['projections']:
-            pass
+            if proj in record_weights:
+                weights[proj] = grab_weights(net['projections'][proj])
+
 
         sim.end()
-
 
         data = {
             'recs': records,
@@ -354,8 +358,70 @@ class Decoder(object):
             'in_labels': self.in_labels,
             'in_spikes': self.inputs,
         }
+
         return data
 
-def spikes_from_pop(pop):
-    data = pop.get_data().segments[0]
-    return data.spiketrains
+
+def grab_data(pop):
+    data = pop.get_data()
+    try:
+        spikes = spikes_from_data(data)
+    except:
+        spikes = []
+    try:
+        voltage = voltage_from_data(data)
+    except:
+        voltage = []
+    return {'spikes': spikes, 'voltage': voltage}
+
+
+def spikes_from_data(data):
+
+    spikes = [[] for _ in range(len(data.segments[0].spiketrains))]
+    for train in data.segments[0].spiketrains:
+        spikes[int(train.annotations['source_index'])][:] = \
+            [float(t) for t in train]
+    return spikes
+
+
+def voltage_from_data(data):
+    volts = data.filter(name='v')
+    return [[[float(a), float(b), float(c)] for a, b, c in volts]]
+
+def safe_get_weights(p):
+    try:
+        return p.getWeights(format='array')
+    except:
+        return []
+
+def grab_weights(proj):
+    if isinstance(proj, dict): #gabor connections are a lot! :O
+        w = {}
+        for k in proj:
+            wk = {}
+            if isinstance(proj[k], dict):
+                for r in proj[k]:
+                    wr = {}
+                    if isinstance(proj[k][r], dict):
+                        for c in proj[k][r]:
+                            wc = {}
+                            if isinstance(proj[k][r][c], dict):
+                                for x in proj[k][r][c]:
+                                    wc[x] = safe_get_weights(proj[k][r][c][x])
+                            else:
+                                wc[-1] = safe_get_weights(proj[k][r][c])
+                            wr[c] = wc
+                    else:
+                        wr[-1] = safe_get_weights(proj[k][r])
+                    wk[r] = wr
+            else:
+                wk[-1] = safe_get_weights(proj[k])
+
+            w[k] = wk
+
+        return w
+    else:
+        try:
+            return safe_get_weights(proj)
+        except:
+            return []

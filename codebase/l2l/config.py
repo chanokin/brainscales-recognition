@@ -48,24 +48,6 @@ SAMPLE_DT = 50.0#ms
 W2S = 0.0025
 
 
-
-### Input generation constants
-
-num_patterns_AL = 10
-num_samples_AL = 1000
-randomize_samples_AL = True # change order of input samples
-prob_active_AL = 0.2
-prob_noise_per_sample_AL = 0.1
-
-sample_t_window = 50 #ms
-start_dt = 25 #ms
-max_rand_dt = 1 #ms
-
-### Connectivity constants
-prob_antenna_to_kenyon = 0.15
-prob_kenyon_to_decision = 0.2 #how many weights will be high
-inactive_k2d_scale = 0.1 #multiply high by this to get low weights
-
 ### Neuron types
 neuron_class = 'IF_curr_exp'
 gabor_class = 'IF_curr_exp'
@@ -100,11 +82,11 @@ gabor_params = base_params.copy()
 mushroom_params = base_params.copy()
 output_params = base_params.copy()
 
-gabor_weight = [1.0, 1.0, 5.0, 5.0]
+gabor_weight = [10.0, 10.0, 50.0, 50.0]
 mushroom_weight = 1.0
 
-record_spikes = ['inputs', 'gabor', 'mushroom', 'output']
-
+record_spikes = ['input', 'gabor', 'mushroom', 'output']
+record_weights = ['input to gabor', 'gabor to mushroom', 'mushroom to output']
 time_dep = 'SpikePairRule'
 tau_plus = 20.0
 tau_minus = 20.0
