@@ -254,13 +254,15 @@ class Decoder(object):
                         econ = sim.FromListConnector(elist)
                         elabel = 'exc - in {} to gabor {}-{}'.format(i, r, c)
                         rowdict[c] = {
-                            'exc': sim.Projection(pre, post, econ, label=elabel),
+                            'exc': sim.Projection(pre, post, econ, sim.StaticSynapse(),
+                                                  label=elabel, receptor_type='excitatory'),
                         }
 
                         if len(ilist) > 0:
                             icon = sim.FromListConnector(ilist)
                             ilabel = 'inh - in {} to gabor {}-{}'.format(i, r, c)
-                            rowdict[c]['inh'] = sim.Projection(pre, post, icon, label=ilabel),
+                            rowdict[c]['inh'] = sim.Projection(pre, post, icon, sim.StaticSynapse(),
+                                                               label=ilabel, receptor_type='inhibitory'),
 
                     lyrdict[r] = rowdict
                 projs[i] = lyrdict
@@ -284,7 +286,8 @@ class Decoder(object):
                         rdict[c] = sim.Projection(pre, post,
                                     sim.FixedProbabilityConnector(prob),
                                     sim.StaticSynapse(weight=mushroom_weight),
-                                   label='gabor {}{}{} to mushroom'.format(lyr, r, c))
+                                   label='gabor {}{}{} to mushroom'.format(lyr, r, c),
+                                    receptor_type='excitatory')
                     lyrdict[r] = rdict
                 projs[lyr] = lyrdict
 
@@ -305,7 +308,7 @@ class Decoder(object):
             stdp = sim.STDPMechanism(timing_dependence=tdep, weight_dependence=wdep)
 
             p = sim.Projection(pre, post, sim.FromListConnector(conn_list), stdp,
-                               label='mushroom to output')
+                               label='mushroom to output', receptor_type='excitatory')
             return p
 
     def _get_recorded(self, layer):
