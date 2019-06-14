@@ -26,7 +26,7 @@ def eval_one_min(trajectory):
     }
 
     # print("\n\n%s"%(name))
-    # pprint(net_params)
+    pprint(net_params)
 
     ex = Executor()
     data = ex.run(name, net_params)
@@ -104,7 +104,9 @@ def main():
 
 
     traj.f_add_parameter('simulation.spikes_path',
-        '/home/gp283/brainscales-recognition/codebase/NE15/mnist-db/spikes/train')
+        '/home/gp283/brainscales-recognition/codebase/NE15/mnist-db/spikes/train'
+        # '/home/gp283/brainscales-recognition/codebase/NE15/mnist-db/spikes/train'
+        )
     # Placeholders for individuals and results that are about to be explored
     traj.f_add_derived_parameter('individual', [0 for x in range(traj.ind_len)],
                                  'An indivudal of the population')

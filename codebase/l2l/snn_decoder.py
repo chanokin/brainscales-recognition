@@ -86,6 +86,12 @@ class Decoder(object):
         nlayers = params['sim']['input_layers']
         in_shape = params['sim']['input_shape']
         dt = params['sim']['sample_dt']
+        if DEBUG:
+            return ([0], {0: [28, 28], 1: [28, 28], 2: [6, 10], 3: [6, 10]},\
+           {0: [[np.round(np.random.uniform(0, 10.0), decimals=1)] if np.random.uniform(0,1) > 0.75 else [] for _ in range(28 * 28)],
+            1: [[np.round(np.random.uniform(0, 10.0), decimals=1)] if np.random.uniform(0,1) > 0.75 else [] for _ in range(28 * 28)],
+            2: [[np.round(np.random.uniform(0, 10.0), decimals=1)] if np.random.uniform(0,1) > 0.75 else [] for _ in range(10 * 6)],
+            3: [[np.round(np.random.uniform(0, 10.0), decimals=1)] if np.random.uniform(0,1) > 0.75 else [] for _ in range(10 * 6)]})
 
         fnames = []
         for cidx in range(nclass):
@@ -255,14 +261,14 @@ class Decoder(object):
                         elabel = 'exc - in {} to gabor {}-{}'.format(i, r, c)
                         rowdict[c] = {
                             'exc': sim.Projection(pre, post, econ, sim.StaticSynapse(),
-                                                  label=elabel, receptor_type='excitatory'),
+                                                  label=elabel, receptor_type='excitatory')
                         }
 
                         if len(ilist) > 0:
                             icon = sim.FromListConnector(ilist)
                             ilabel = 'inh - in {} to gabor {}-{}'.format(i, r, c)
                             rowdict[c]['inh'] = sim.Projection(pre, post, icon, sim.StaticSynapse(),
-                                                               label=ilabel, receptor_type='inhibitory'),
+                                                               label=ilabel, receptor_type='inhibitory')
 
                     lyrdict[r] = rowdict
                 projs[i] = lyrdict
@@ -392,10 +398,10 @@ def voltage_from_data(data):
     return [[[float(a), float(b), float(c)] for a, b, c in volts]]
 
 def safe_get_weights(p):
-    try:
+    # try:
         return p.getWeights(format='array')
-    except:
-        return []
+    # except:
+    #     return []
 
 def grab_weights(proj):
     if isinstance(proj, dict): #gabor connections are a lot! :O
@@ -410,14 +416,18 @@ def grab_weights(proj):
                             wc = {}
                             if isinstance(proj[k][r][c], dict):
                                 for x in proj[k][r][c]:
+                                    print(k,r,c,x, proj[k][r][c][x])
                                     wc[x] = safe_get_weights(proj[k][r][c][x])
                             else:
+                                print(k, r, c, proj[k][r][c])
                                 wc[-1] = safe_get_weights(proj[k][r][c])
                             wr[c] = wc
                     else:
+                        print(k, r, proj[k][r])
                         wr[-1] = safe_get_weights(proj[k][r])
                     wk[r] = wr
             else:
+                print(k, proj[k])
                 wk[-1] = safe_get_weights(proj[k])
 
             w[k] = wk

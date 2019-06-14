@@ -10,7 +10,8 @@ function appendToConfig(){
 
 # create virtual environment (Python 2.7)
 if [ ! -d "$VENV_NEW_DIR" ]; then
-    pyvenv-3.5 $VENV_NEW_DIR
+    
+    python3 -m venv $VENV_NEW_DIR
     source $VENV_NEW_DIR/bin/activate
 
     pip install --upgrade pip

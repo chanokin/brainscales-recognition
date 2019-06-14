@@ -15,12 +15,12 @@ N_INPUT_LAYERS = 4
 PAD = KERNEL_W//2
 PI_DIVS_RANGE = (1, 2) if DEBUG else (2, 7)
 STRIDE_RANGE = (3, 4) if DEBUG else (1, KERNEL_W//2 + 1)
-OMEGA_RANGE = (0.1, 3.0)
+OMEGA_RANGE = (0.5, 3.0)
 EXPANSION_RANGE = (1, 2) if DEBUG else (2, 6)
 EXP_PROB_RANGE = (0.01, 0.011) if DEBUG else (0.05, 0.5)
 OUTPUT_PROB_RANGE = (0.01, 0.011) if DEBUG else (0.05, 0.5)
 OUTPUT_SIZE = N_CLASSES * 10
-OUT_WEIGHT_RANGE = (0.001, 0.1)
+OUT_WEIGHT_RANGE = (4.0, 5.0)
 
 ATTRS = ['out_weight', 'n_pi_divs', 'stride',
     'omega', 'expand', 'exp_prob', 'out_prob']
@@ -87,6 +87,7 @@ mushroom_weight = 1.0
 
 record_spikes = ['input', 'gabor', 'mushroom', 'output']
 record_weights = ['input to gabor', 'gabor to mushroom', 'mushroom to output']
+# record_weights = ['gabor to mushroom', 'mushroom to output']
 time_dep = 'SpikePairRule'
 tau_plus = 20.0
 tau_minus = 20.0
