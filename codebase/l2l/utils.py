@@ -4,11 +4,17 @@ import os
 import glob
 
 HEIGHT, WIDTH = range(2)
-ROWS, COLS = range(2)
+ROWS, COLS = HEIGHT, WIDTH
 PRE, POST, WEIGHT, DELAY = range(4)
 
-def to_post(v, p, s, k):
-    return ((v - k + 2 * p) // s) + 1
+
+def to_post(val, pad, stride):
+    return ((val - pad) // stride)
+
+
+def post_shape(val, stride, kernel_width):
+    return (((val - kernel_width) // stride) + 1)
+
 
 def randint_float(vmin, vmax, div=None):
     if div is None:
@@ -20,25 +26,32 @@ def randint_float(vmin, vmax, div=None):
 def compute_num_regions(shape, stride, padding, kernel_shape):
     ins = np.array(shape)
     s = np.array(stride)
-    p = np.array(padding)
     ks = np.array(kernel_shape)
-    post_shape = to_post(ins, p, s, ks)
-    return post_shape[WIDTH] * post_shape[HEIGHT]
+    ps = post_shape(ins, s, ks)
+    ps[WIDTH] = max(1, ps[WIDTH])
+    ps[HEIGHT] = max(1, ps[HEIGHT])
+    return int(ps[HEIGHT] * ps[WIDTH])
+
 
 def compute_region_shape(shape, stride, padding, kernel_shape):
     ins = np.array(shape)
     s = np.array(stride)
-    p = np.array(padding)
     ks = np.array(kernel_shape)
-    post_shape = to_post(ins, p, s, ks)
-    return (post_shape[HEIGHT], post_shape[WIDTH])
+    ps = post_shape(ins, s, ks).astype('int')
+    ps[WIDTH] = max(1, ps[WIDTH])
+    ps[HEIGHT] = max(1, ps[HEIGHT])
+
+    return [ps[HEIGHT], ps[WIDTH]]
+
 
 def n_neurons_per_region(num_in_layers, num_pi_divs):
     return num_in_layers * num_pi_divs
 
+
 def n_in_gabor(shape, stride, padding, kernel_shape, num_in_layers, num_pi_divs):
     return compute_num_regions(shape, stride, padding, kernel_shape) * \
            n_neurons_per_region(num_in_layers, num_pi_divs)
+
 
 def generate_input_vectors(num_vectors, dimension, on_probability, seed=1):
     n_active = int(on_probability*dimension)
@@ -50,6 +63,7 @@ def generate_input_vectors(num_vectors, dimension, on_probability, seed=1):
         vecs[i, indices] = 1.0
     np.random.seed()
     return vecs
+
 
 def generate_samples(input_vectors, num_samples, prob_noise, seed=1, method=None):
     """method='all' means randomly choose indices where we flip 1s and 0s with probability = prob_noise"""
@@ -87,6 +101,7 @@ def generate_samples(input_vectors, num_samples, prob_noise, seed=1, method=None
     np.random.seed()
     return samples
 
+
 def samples_to_spike_times(samples, sample_dt, start_dt, max_rand_dt, seed=1,
     randomize_samples=False):
     np.random.seed(seed)
@@ -110,6 +125,7 @@ def samples_to_spike_times(samples, sample_dt, start_dt, max_rand_dt, seed=1,
     np.random.seed()
     return indices, spike_times
 
+
 def gain_control_list(input_size, horn_size, max_w, cutoff=0.75):
     n_cutoff = 15#int(cutoff*horn_size)
     matrix = np.ones((input_size*horn_size, 4))
@@ -119,6 +135,7 @@ def gain_control_list(input_size, horn_size, max_w, cutoff=0.75):
     matrix[:, 2] = np.tile( max_w / (n_cutoff + 1.0 + np.arange(horn_size)), input_size)
 
     return matrix
+
 
 def output_connection_list(kenyon_size, decision_size, prob_active,
                            active_weight, inactive_scaling, seed=1):
@@ -141,6 +158,7 @@ def output_connection_list(kenyon_size, decision_size, prob_active,
 
     return matrix
 
+
 def load_spike_file(dataset, digit, index):
     if dataset not in ['train', 't10k']:
         dataset = 'train'
@@ -152,16 +170,19 @@ def load_spike_file(dataset, digit, index):
             os.path.join(base_dir, dataset, str(digit), '*.npz')))[index]
 
 
-
-
 def pre_indices_per_region(pre_shape, pad, stride, kernel_shape):
+    ps = compute_region_shape(pre_shape, stride, pad, kernel_shape)
     hk = np.array(kernel_shape) // 2
     pres = {}
-    for _r in range(pad[HEIGHT], pre_shape[HEIGHT]+pad[HEIGHT], stride[HEIGHT]):
-        post_r = int(to_post(_r, pad[HEIGHT], stride[HEIGHT], np.array(kernel_shape[HEIGHT])) - 1)
+    for _r in range(pad[HEIGHT], pre_shape[HEIGHT], stride[HEIGHT]):
+        post_r = int(to_post(_r, pad[HEIGHT], stride[HEIGHT]))
+        if post_r < 0 or post_r >= ps[HEIGHT]:
+            continue
         rdict = pres.get(post_r, {})
-        for _c in range(pad[WIDTH], pre_shape[WIDTH]+pad[WIDTH], stride[WIDTH]):
-            post_c = int(to_post(_c, pad[WIDTH], stride[WIDTH], np.array(kernel_shape[WIDTH])) - 1)
+        for _c in range(pad[WIDTH], pre_shape[WIDTH], stride[WIDTH]):
+            post_c = int(to_post(_c, pad[WIDTH], stride[WIDTH]))
+            if post_c < 0 or post_c >= ps[WIDTH]:
+                continue
             clist = rdict.get(post_c, [])
 
             for k_r in range(-hk[HEIGHT], hk[HEIGHT] + 1, 1):
@@ -177,30 +198,6 @@ def pre_indices_per_region(pre_shape, pad, stride, kernel_shape):
         pres[post_r] = rdict
 
     return pres
-
-
-def kernel_pre_post_pairs(pre_shape, pad, stride, kernel_shape):
-    post_shape = to_post(np.array(pre_shape), pad, stride, np.array(kernel_shape))
-    hk = np.array(kernel_shape) // 2
-
-    pairs = []
-    for _r in range(pad, pre_shape[HEIGHT], stride):
-        for _c in range(pad, pre_shape[WIDTH], stride):
-            post_r = to_post(_r, pad, stride, np.array(kernel_shape[HEIGHT])) - 1
-            post_c = to_post(_c, pad, stride, np.array(kernel_shape[WIDTH])) - 1
-            for k_r in range(-hk[HEIGHT], hk[HEIGHT] + 1, 1):
-                for k_c in range(-hk[WIDTH], hk[WIDTH] + 1, 1):
-                    pre_r, pre_c = _r + k_r, _c + k_c
-                    if pre_r < 0 or pre_c < 0 or \
-                            pre_r >= pre_shape[HEIGHT] or \
-                            pre_c >= pre_shape[WIDTH]:
-                        continue
-
-                    pre_id = pre_r * pre_shape[WIDTH] + pre_c
-                    post_id = post_r * post_shape[WIDTH] + post_c
-                    pairs.append([pre_id, post_id])
-
-    return np.array(pairs)
 
 
 def prob_conn_from_list(pre_post_pairs, n_per_post, probability, weight, delay, weight_off_mult=None):
@@ -221,6 +218,7 @@ def prob_conn_from_list(pre_post_pairs, n_per_post, probability, weight, delay, 
                     conns.append([pre, post, weight*weight_off_mult, delay])
 
     return np.array(conns)
+
 
 def gabor_kernel(params):
     # adapted from
@@ -290,7 +288,6 @@ def split_to_inh_exc(conn_list, epsilon=float(1e-6)):
     return i, e
 
 
-
 def split_spikes(spikes, n_types):
     spikes_out = [[] for _ in range(n_types)]
     n_per_type = spikes.shape[0] // n_types
@@ -341,6 +338,7 @@ def scaled_pre_templates(pre_shape, pad, stride, kernel_shape, divs):
             pre_indices.append(d) 
 
     return pre_indices
+
 
 def append_spikes(source, added, dt):
     for i, times in enumerate(added):

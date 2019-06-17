@@ -30,6 +30,7 @@ class Decoder(object):
         self.in_shapes = None
         self.in_labels = None
         self.name = name
+        self.params = params
         self.decode(params)
         logging.info("In Decoder init, %s"%name)
         # pprint(params)
@@ -86,7 +87,7 @@ class Decoder(object):
         nlayers = params['sim']['input_layers']
         in_shape = params['sim']['input_shape']
         dt = params['sim']['sample_dt']
-        if DEBUG:
+        if DEBUG and bool(0):
             return ([0], {0: [28, 28], 1: [28, 28], 2: [6, 10], 3: [6, 10]},\
            {0: [[np.round(np.random.uniform(0, 10.0), decimals=1)] if np.random.uniform(0,1) > 0.75 else [] for _ in range(28 * 28)],
             1: [[np.round(np.random.uniform(0, 10.0), decimals=1)] if np.random.uniform(0,1) > 0.75 else [] for _ in range(28 * 28)],
@@ -237,14 +238,14 @@ class Decoder(object):
                 'theta': (np.arange(ndivs) * adiv).tolist(),
                 'shape': k_shape,
             }
-
+            pre_shapes = self.in_shapes
             pres = self.input_populations()
             post_shapes, posts = self.gabor_populations()
 
             projs = {}
             for i in self.in_shapes:
                 lyrdict = projs.get(i, {})
-                pre_shape = self.in_shapes[i]
+                pre_shape = pre_shapes[i]
                 pre_indices = pre_indices_per_region(pre_shape, pad, stride, k_shape)
                 pre = pres[i]
                 for r in posts[i]:
@@ -253,6 +254,7 @@ class Decoder(object):
                         k, conns = gabor_connect_list(pre_indices[r][c], gabor_params, delay=1.0,
                                                       w_mult=gabor_weight[i])
                         ilist, elist = split_to_inh_exc(conns)
+
                         if len(elist) == 0:
                             continue
 
@@ -364,8 +366,15 @@ class Decoder(object):
         data = {
             'recs': records,
             'weights': weights,
-            'in_labels': self.in_labels,
-            'in_spikes': self.inputs,
+            'input': {
+                'labels': self.in_labels,
+                'spikes': self.inputs,
+                'shapes': self.in_shapes,
+            },
+            'params': self.params,
+            'gabor': {
+                'shapes': self.gabor_shapes,
+            },
         }
 
         return data
@@ -398,10 +407,10 @@ def voltage_from_data(data):
     return [[[float(a), float(b), float(c)] for a, b, c in volts]]
 
 def safe_get_weights(p):
-    # try:
+    try:
         return p.getWeights(format='array')
-    # except:
-    #     return []
+    except:
+        return []
 
 def grab_weights(proj):
     if isinstance(proj, dict): #gabor connections are a lot! :O
@@ -416,18 +425,18 @@ def grab_weights(proj):
                             wc = {}
                             if isinstance(proj[k][r][c], dict):
                                 for x in proj[k][r][c]:
-                                    print(k,r,c,x, proj[k][r][c][x])
+                                    # print(k,r,c,x, proj[k][r][c][x])
                                     wc[x] = safe_get_weights(proj[k][r][c][x])
                             else:
-                                print(k, r, c, proj[k][r][c])
+                                # print(k, r, c, proj[k][r][c])
                                 wc[-1] = safe_get_weights(proj[k][r][c])
                             wr[c] = wc
                     else:
-                        print(k, r, proj[k][r])
+                        # print(k, r, proj[k][r])
                         wr[-1] = safe_get_weights(proj[k][r])
                     wk[r] = wr
             else:
-                print(k, proj[k])
+                # print(k, proj[k])
                 wk[-1] = safe_get_weights(proj[k])
 
             w[k] = wk

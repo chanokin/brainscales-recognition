@@ -30,7 +30,8 @@ def eval_one_min(trajectory):
 
     ex = Executor()
     data = ex.run(name, net_params)
-    print(data)
+
+    # print(data)
 
     os.makedirs(results_path, exist_ok=True)
     fname = 'data_{}.npz'.format(name)
