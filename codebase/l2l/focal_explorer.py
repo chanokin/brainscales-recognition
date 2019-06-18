@@ -91,13 +91,15 @@ def main():
 
     traj.f_add_parameter('seed', 42, comment='Seed for RNG')
     
-    traj.f_add_parameter('simulation.duration', N_CLASSES*N_SAMPLES*SAMPLE_DT)#ms
+    traj.f_add_parameter('simulation.duration', N_CLASSES*TOTAL_SAMPLES*SAMPLE_DT)#ms
     traj.f_add_parameter('simulation.sample_dt', SAMPLE_DT)#ms
     traj.f_add_parameter('simulation.input_shape', (28, 28))#rows, cols
     traj.f_add_parameter('simulation.input_divs', (3, 5))#rows, cols
     traj.f_add_parameter('simulation.input_layers', N_INPUT_LAYERS)
     traj.f_add_parameter('simulation.num_classes', N_CLASSES)
     traj.f_add_parameter('simulation.samples_per_class', N_SAMPLES)
+    traj.f_add_parameter('simulation.test_per_class', N_TEST)
+    traj.f_add_parameter('simulation.total_per_class', TOTAL_SAMPLES)
     traj.f_add_parameter('simulation.kernel_width', KERNEL_W)
     traj.f_add_parameter('simulation.kernel_pad', PAD)
     traj.f_add_parameter('simulation.output_size', OUTPUT_SIZE)

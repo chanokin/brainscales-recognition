@@ -10,6 +10,7 @@ from config import *
 from utils import *
 import matplotlib.pyplot as plt
 import sys
+from analyse_network import spiking_per_class
 
 if DEBUG:
     class Logging:
@@ -45,8 +46,8 @@ class Decoder(object):
         sim.setup(self._network['timestep'],
                   self._network['min_delay'],
                   model_name=self.name,
-                  backend='SingleThreadedCPU'
-                  )
+                  backend='SingleThreadedCPU',
+                )
 
         logging.info("\tGenerating spikes")
         self.in_labels, self.in_shapes, self.inputs = self.get_in_spikes(params)
@@ -61,8 +62,14 @@ class Decoder(object):
         logging.info("\tPopulations: Mushroom")
         pops['mushroom'] = self.mushroom_population(params)
 
+        logging.info("\tPopulations: Mushroom Inhibitory")
+        pops['inh_mushroom'] = self.inh_mushroom_population(params)
+
         logging.info("\tPopulations: Output")
         pops['output'] = self.output_population(params)
+
+        logging.info("\tPopulations: Output Inhibitory")
+        pops['inh_output'] = self.inh_output_population(params)
 
         self._network['populations'] = pops
 
@@ -75,7 +82,15 @@ class Decoder(object):
         projs['gabor to mushroom'] = self.gabor_to_mushroom(params)
 
         logging.info("\tProjections: Mushroom to Output")
-        projs['mushroom to output'] = self.mushroom_to_out(params)
+        projs['mushroom to output'] = self.mushroom_to_output(params)
+
+        logging.info("\tProjections: Mushroom sWTA")
+        projs['wta_mushroom'] = self.wta_mushroom(params)
+
+        logging.info("\tProjections: Output sWTA")
+        projs['wta_output'] = self.wta_output(params)
+
+
 
         self._network['projections'] = projs
 
@@ -83,7 +98,7 @@ class Decoder(object):
     def get_in_spikes(self, params):
         path = params['sim']['spikes_path']
         nclass = params['sim']['num_classes']
-        nsamp = params['sim']['samples_per_class']
+        nsamp = params['sim']['total_per_class']
         nlayers = params['sim']['input_layers']
         in_shape = params['sim']['input_shape']
         dt = params['sim']['sample_dt']
@@ -201,6 +216,20 @@ class Decoder(object):
 
             return p
 
+    def inh_mushroom_population(self, params=None):
+        try:
+            return self._network['populations']['inh_mushroom']
+        except:
+            neuron_type = getattr(sim, inh_mushroom_class)
+            p = sim.Population(1, neuron_type, inh_mushroom_params,
+                               label='inh_mushroom')
+
+            if 'inh_mushroom' in record_spikes:
+                p.record('spikes')
+
+            return p
+
+
     def output_population(self, params=None):
         try:
             return self._network['populations']['output']
@@ -211,6 +240,19 @@ class Decoder(object):
                                label='output')
 
             if 'output' in record_spikes:
+                p.record('spikes')
+
+            return p
+
+    def inh_output_population(self, params=None):
+        try:
+            return self._network['populations']['inh_output']
+        except:
+            neuron_type = getattr(sim, inh_output_class)
+            p = sim.Population(1, neuron_type, inh_output_params,
+                               label='inh_output')
+
+            if 'inh_output' in record_spikes:
                 p.record('spikes')
 
             return p
@@ -277,7 +319,7 @@ class Decoder(object):
 
             return projs
 
-    def gabor_to_mushroom(self, params):
+    def gabor_to_mushroom(self, params=None):
         try:
             return self._network['projections']['gabor to mushroom']
         except:
@@ -301,7 +343,31 @@ class Decoder(object):
 
             return projs
 
-    def mushroom_to_out(self, params):
+    def wta_mushroom(self, params=None):
+        try:
+            return self._network['projections']['wta_mushroom']
+        except:
+            prjs = {}
+            exc = self.mushroom_population()
+            inh = self.inh_mushroom_population()
+            ew = excitatory_weight['mushroom'] / float(exc.size)
+
+            prjs['e to i'] = sim.Projection(exc, inh,
+                                sim.AllToAllConnector(),
+                                sim.StaticSynapse(weight=ew, delay=TIMESTEP),
+                                label='mushroom to inh_mushroom',
+                                receptor_type='excitatory')
+
+            prjs['i to e'] = sim.Projection(inh, exc,
+                                sim.AllToAllConnector(),
+                                sim.StaticSynapse(weight=inhibitory_weight, delay=TIMESTEP),
+                                label='inh_mushroom to mushroom',
+                                receptor_type='inhibitory')
+
+            return prjs
+
+
+    def mushroom_to_output(self, params=None):
         try:
             return self._network['projections']['mushroom to output']
         except:
@@ -318,6 +384,30 @@ class Decoder(object):
             p = sim.Projection(pre, post, sim.FromListConnector(conn_list), stdp,
                                label='mushroom to output', receptor_type='excitatory')
             return p
+
+    def wta_output(self, params=None):
+        try:
+            return self._network['projections']['wta_output']
+        except:
+            prjs = {}
+            exc = self.output_population()
+            inh = self.inh_output_population()
+            ew = excitatory_weight['output'] / float(exc.size)
+
+            prjs['e to i'] = sim.Projection(exc, inh,
+                                sim.AllToAllConnector(),
+                                sim.StaticSynapse(weight=ew, delay=TIMESTEP),
+                                label='output to inh_output',
+                                receptor_type='excitatory')
+
+            prjs['i to e'] = sim.Projection(inh, exc,
+                                sim.AllToAllConnector(),
+                                sim.StaticSynapse(weight=inhibitory_weight, delay=TIMESTEP),
+                                label='inh_output to output',
+                                receptor_type='inhibitory')
+
+            return prjs
+
 
     def _get_recorded(self, layer):
         data = {}
@@ -336,10 +426,8 @@ class Decoder(object):
                         rdict[c] = grab_data(pops[i][r][c])
                     idict[r] = rdict
                 data[i] = idict
-        elif layer == 'mushroom':
-            data[0] = grab_data(self.mushroom_population())
-        elif layer == 'output':
-            data[0] = grab_data(self.output_population())
+        else:
+            data[0] = grab_data(self._network['populations'][layer])
 
         return data
 
@@ -363,6 +451,17 @@ class Decoder(object):
 
         sim.end()
 
+
+        ### todo: change start and end for labels and runtimes
+        dt = self.params['sim']['sample_dt']
+        nclass = self.params['sim']['num_classes']
+        ntrain = self.params['sim']['samples_per_class']
+        start_t = dt * nclass * ntrain
+        cls_labels = self.in_labels[int(start_t//dt):]
+        spk_p_class = spiking_per_class(cls_labels,
+                                        records['output'][0]['spikes'],
+                                        start_t, net['run_time'], dt),
+
         data = {
             'recs': records,
             'weights': weights,
@@ -375,7 +474,12 @@ class Decoder(object):
             'gabor': {
                 'shapes': self.gabor_shapes,
             },
+            'analysis':{
+                'per_class': spk_p_class
+            }
         }
+
+
 
         return data
 
