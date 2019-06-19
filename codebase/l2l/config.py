@@ -24,19 +24,23 @@ EXPANSION_RANGE = (1, 2) if DEBUG else (2, 6)
 EXP_PROB_RANGE = (0.05, 0.0500001) if DEBUG else (0.05, 0.5)
 OUTPUT_PROB_RANGE = (0.05, 0.0500001) if DEBUG else (0.05, 0.5)
 OUTPUT_SIZE = N_CLASSES * 10
-OUT_WEIGHT_RANGE = (0.1, 0.100001) if DEBUG else (0.01, 0.5)
+OUT_WEIGHT_RANGE = (0.2, 0.200001) if DEBUG else (0.01, 0.5)
+GABOR_WEIGHT_RANGE = (1.0, 1.000001) if DEBUG else (1.0, 5.0)
+MUSHROOM_WEIGHT_RANGE = (0.25, 0.2500001) if DEBUG else (0.1, 1.0)
 
 ### static weights
-gabor_weight = [2.0, 2.0, 4.0, 4.0]
-mushroom_weight = 0.1
-inhibitory_weight = -1.0
+# gabor_weight = [1.0, 1.0, 2.0, 2.0]
+# mushroom_weight = 0.25
+inhibitory_weight = -5.0
 excitatory_weight = {
-    'mushroom': 0.1,
-    'output': 1.0,
+    'mushroom': 0.5,
+    'output': 3.0,
 }
 
 ATTRS = ['out_weight', 'n_pi_divs', 'stride',
-    'omega', 'expand', 'exp_prob', 'out_prob']
+    'omega', 'expand', 'exp_prob', 'out_prob',
+    'mushroom_weight']
+ATTRS += ['gabor_weight-%d'%i for i in range(N_INPUT_LAYERS)]
 
 N_ATTRS = len(ATTRS)
 
@@ -44,6 +48,7 @@ ATTR2IDX = {attr: i for i, attr in enumerate(ATTRS)}
 
 ATTR_RANGES = {
     'out_weight': OUT_WEIGHT_RANGE,
+    'mushroom_weight': MUSHROOM_WEIGHT_RANGE,
     'n_pi_divs': PI_DIVS_RANGE,
     'stride': STRIDE_RANGE,
     'omega': OMEGA_RANGE,
@@ -51,7 +56,9 @@ ATTR_RANGES = {
     'exp_prob': EXP_PROB_RANGE,
     'out_prob': OUTPUT_PROB_RANGE,
 }
-
+for s in ATTRS:
+    if s.startswith('gabor_weight'):
+        ATTR_RANGES[s] = GABOR_WEIGHT_RANGE
 
 
 ### Neuron types

@@ -262,12 +262,12 @@ class Decoder(object):
     ### -----------------          projections           ---------------------
     ### ----------------------------------------------------------------------
 
-
     def in_to_gabor(self, params=None):
         try:
             return self._network['projections']['input to gabor']
         except:
-
+            gabor_weight = [params['ind'][s] for s in sorted(params['ind'].keys()) \
+                                                        if s.startswith('gabor_weight')]
             stride = (int(params['ind']['stride']), int(params['ind']['stride']))
             pad = (int(params['sim']['kernel_pad']), int(params['sim']['kernel_pad']))
             k_shape = (int(params['sim']['kernel_width']), int(params['sim']['kernel_width']))
@@ -325,6 +325,7 @@ class Decoder(object):
         except:
             post = self.mushroom_population()
             prob = params['ind']['exp_prob']
+            mushroom_weight = params['ind']['mushroom_weight']
             projs = {}
             pre_shapes, pres = self.gabor_populations()
             for lyr in pres:
@@ -343,14 +344,16 @@ class Decoder(object):
 
             return projs
 
+
     def wta_mushroom(self, params=None):
         try:
             return self._network['projections']['wta_mushroom']
         except:
             prjs = {}
+            pre_size = np.sum([s[0]*s[1] for i, s in self.gabor_shapes.items()])
             exc = self.mushroom_population()
             inh = self.inh_mushroom_population()
-            ew = excitatory_weight['mushroom'] / float(exc.size)
+            ew = excitatory_weight['mushroom'] * (pre_size / float(exc.size))
 
             prjs['e to i'] = sim.Projection(exc, inh,
                                 sim.AllToAllConnector(),
@@ -385,6 +388,7 @@ class Decoder(object):
                                label='mushroom to output', receptor_type='excitatory')
             return p
 
+
     def wta_output(self, params=None):
         try:
             return self._network['projections']['wta_output']
@@ -392,7 +396,7 @@ class Decoder(object):
             prjs = {}
             exc = self.output_population()
             inh = self.inh_output_population()
-            ew = excitatory_weight['output'] / float(exc.size)
+            ew = excitatory_weight['output']
 
             prjs['e to i'] = sim.Projection(exc, inh,
                                 sim.AllToAllConnector(),
