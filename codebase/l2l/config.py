@@ -25,7 +25,7 @@ EXP_PROB_RANGE = (0.05, 0.0500001) if DEBUG else (0.05, 0.5)
 OUTPUT_PROB_RANGE = (0.05, 0.0500001) if DEBUG else (0.05, 0.5)
 OUTPUT_SIZE = N_CLASSES * 10
 OUT_WEIGHT_RANGE = (0.2, 0.200001) if DEBUG else (0.01, 0.5)
-GABOR_WEIGHT_RANGE = (1.0, 1.000001) if DEBUG else (1.0, 5.0)
+GABOR_WEIGHT_RANGE = (2.0, 2.000001) if DEBUG else (1.0, 5.0)
 MUSHROOM_WEIGHT_RANGE = (0.25, 0.2500001) if DEBUG else (0.1, 1.0)
 
 ### static weights
@@ -33,6 +33,7 @@ MUSHROOM_WEIGHT_RANGE = (0.25, 0.2500001) if DEBUG else (0.1, 1.0)
 # mushroom_weight = 0.25
 inhibitory_weight = -5.0
 excitatory_weight = {
+    'gabor': 3.0,
     'mushroom': 0.5,
     'output': 3.0,
 }

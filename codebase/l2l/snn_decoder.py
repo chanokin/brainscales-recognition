@@ -84,6 +84,9 @@ class Decoder(object):
         logging.info("\tProjections: Mushroom to Output")
         projs['mushroom to output'] = self.mushroom_to_output(params)
 
+        logging.info("\tProjections: Gabor sWTA")
+        projs['wta_mushroom'] = self.wta_gabor(params)
+
         logging.info("\tProjections: Mushroom sWTA")
         projs['wta_mushroom'] = self.wta_mushroom(params)
 
@@ -339,6 +342,31 @@ class Decoder(object):
                                     sim.StaticSynapse(weight=mushroom_weight),
                                    label='gabor {}{}{} to mushroom'.format(lyr, r, c),
                                     receptor_type='excitatory')
+                    lyrdict[r] = rdict
+                projs[lyr] = lyrdict
+
+            return projs
+
+    def wta_gabor(self, params=None):
+        try:
+            return self._network['projections']['wta_gabor']
+        except:
+            iw = inhibitory_weight
+            projs = {}
+            pre_shapes, pres = self.gabor_populations()
+            for lyr in pres:
+                lyrdict = projs.get(lyr, {})
+                for r in pres[lyr]:
+                    rdict = lyrdict.get(r, {})
+                    for c in pres[lyr][r]:
+                        pre = pres[lyr][r][c]
+                        post = pres[lyr][r][c]
+
+                        rdict[c] = sim.Projection(pre, post,
+                                    sim.AllToAllConnector(),
+                                    sim.StaticSynapse(weight=iw, delay=TIMESTEP),
+                                   label='wta gabor {}{}{}'.format(lyr, r, c),
+                                    receptor_type='inhibitory')
                     lyrdict[r] = rdict
                 projs[lyr] = lyrdict
 
